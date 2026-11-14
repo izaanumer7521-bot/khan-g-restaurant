@@ -18,7 +18,7 @@ export default function Navbar() {
 
   return (
     <header className={'nav' + (solid || open ? ' solid' : '')}>
-      <Link to="/" className="logo">KHAN<b>G</b></Link>
+      <Link to="/" className="logo" aria-label="Khan G home"><img className="logo-img" src="/logo.png" alt="Khan G" /></Link>
       <nav className={'links' + (open ? ' open' : '')}>
         {[['/', 'Home'], ['/menu', 'Menu'], ['/reserve', 'Reserve a table'], ['/contact', 'Contact']].map(([to, l]) => (
           <NavLink key={to} to={to} end>{l}</NavLink>

@@ -21,7 +21,7 @@ export default function Login() {
   return (
     <div className="login">
       <form className="form card" onSubmit={submit}>
-        <div className="logo">KHAN<b>G</b></div>
+        <img className="logo-img big" src="/logo.png" alt="Khan G" />
         <h2>Admin login</h2>
         <label>Email<input type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
         <label>Password<input type="password" required value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></label>

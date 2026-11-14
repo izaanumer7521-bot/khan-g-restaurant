@@ -6,7 +6,7 @@ export default function Footer() {
     <footer className="footer">
       <div className="foot-grid">
         <div>
-          <div className="logo">KHAN<b>G</b></div>
+          <img className="logo-img big" src="/logo.png" alt="Khan G" />
           <p className="muted">Breakfast, karahi, BBQ and biryani, cooked fresh every day.</p>
         </div>
         <div>

@@ -16,7 +16,7 @@ export default function AdminLayout() {
   return (
     <div className="admin">
       <aside className="side">
-        <div className="logo">KHAN<b>G</b></div>
+        <img className="logo-img big" src="/logo.png" alt="Khan G" />
         <nav>{links.map(([to, l]) => <NavLink key={to} to={to} end={to === '/admin'}>{l}</NavLink>)}</nav>
         <button className="btn ghost sm logout" onClick={logout}>Log out</button>
         <a className="muted sitelink" href="/" target="_blank" rel="noreferrer">View website</a>
