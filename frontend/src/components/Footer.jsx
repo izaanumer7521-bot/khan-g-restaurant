@@ -22,7 +22,6 @@ export default function Footer() {
         <div>
           <h4>Explore</h4>
           <p><Link to="/menu">Menu</Link></p>
-          <p><Link to="/reserve">Reserve a table</Link></p>
           <p><Link to="/contact">Contact</Link></p>
         </div>
       </div>

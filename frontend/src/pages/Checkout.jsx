@@ -14,7 +14,7 @@ export default function Checkout() {
     e.preventDefault();
     setState({ busy: true, done: null, err: '' });
     try {
-      const r = await api('/orders', { method: 'POST', body: { ...f, items: items.map((i) => ({ id: i._id, qty: i.qty })) } });
+      const r = await api('/orders', { method: 'POST', body: { ...f, items: items.map((i) => ({ id: i._id, size: i.size, qty: i.qty })) } });
       clear();
       setState({ busy: false, done: r, err: '' });
     } catch (x) { setState({ busy: false, done: null, err: x.message }); }
@@ -55,12 +55,12 @@ export default function Checkout() {
         <div className="card">
           <h3>Order summary</h3>
           {items.map((i) => (
-            <div className="cart-row" key={i._id}>
-              <div><strong>{i.name}</strong><div className="muted">{money(i.price)} each</div></div>
+            <div className="cart-row" key={i.key}>
+              <div><strong>{i.name}{i.size ? ' (' + i.size + ')' : ''}</strong><div className="muted">{money(i.price)} each</div></div>
               <div className="qty">
-                <button type="button" onClick={() => setQty(i._id, i.qty - 1)} aria-label="Remove one">−</button>
+                <button type="button" onClick={() => setQty(i.key, i.qty - 1)} aria-label="Remove one">−</button>
                 <span>{i.qty}</span>
-                <button type="button" onClick={() => setQty(i._id, i.qty + 1)} aria-label="Add one">+</button>
+                <button type="button" onClick={() => setQty(i.key, i.qty + 1)} aria-label="Add one">+</button>
               </div>
             </div>
           ))}

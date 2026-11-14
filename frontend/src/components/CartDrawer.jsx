@@ -13,12 +13,12 @@ export default function CartDrawer() {
         <div className="drawer-b">
           {!items.length && <p className="muted">Your cart is empty. Add something from the menu.</p>}
           {items.map((i) => (
-            <div className="cart-row" key={i._id}>
-              <div><strong>{i.name}</strong><div className="muted">{money(i.price)}</div></div>
+            <div className="cart-row" key={i.key}>
+              <div><strong>{i.name}{i.size ? ' (' + i.size + ')' : ''}</strong><div className="muted">{money(i.price)}</div></div>
               <div className="qty">
-                <button onClick={() => setQty(i._id, i.qty - 1)} aria-label="Remove one">−</button>
+                <button onClick={() => setQty(i.key, i.qty - 1)} aria-label="Remove one">−</button>
                 <span>{i.qty}</span>
-                <button onClick={() => setQty(i._id, i.qty + 1)} aria-label="Add one">+</button>
+                <button onClick={() => setQty(i.key, i.qty + 1)} aria-label="Add one">+</button>
               </div>
             </div>
           ))}

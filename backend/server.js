@@ -28,7 +28,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/menu', require('./routes/menu'));
 app.use('/api/images', require('./routes/images'));
 app.use('/api/orders', require('./routes/orders'));
-app.use('/api/reservations', require('./routes/reservations'));
+app.use('/api/categories', require('./routes/categories'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/stats', require('./routes/stats'));
 app.get('/api/health', (req, res) => res.json({ ok: true }));

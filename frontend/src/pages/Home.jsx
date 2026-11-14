@@ -24,7 +24,7 @@ export default function Home() {
         </section>
       )}
 
-      <section className="sec band">
+      {breakfast.length > 0 && <section className="sec band">
         <div className="split">
           <Reveal>
             <h2 className="title">Breakfast starts at 7</h2>
@@ -33,14 +33,14 @@ export default function Home() {
           </Reveal>
           <div className="mini-grid">{breakfast.map((m) => <Reveal key={m._id}><Dish item={m} /></Reveal>)}</div>
         </div>
-      </section>
+      </section>}
 
       <section className="sec">
         <div className="trio">
           {[
             ['Fresh every day', 'Spices ground in-house and meat prepared on the day it is cooked.'],
             ['Cooked on real fire', 'Charcoal for the grill, open flame for the karahi, tandoor for the naan.'],
-            ['Easy to order', 'Order online for delivery or pickup, or reserve a table in under a minute.'],
+            ['Easy to order', 'Order online for delivery or pickup, with cash on delivery.'],
           ].map(([h, p]) => (
             <Reveal key={h}><div className="card"><h3>{h}</h3><p className="muted">{p}</p></div></Reveal>
           ))}
@@ -49,9 +49,9 @@ export default function Home() {
 
       <section className="sec cta">
         <Reveal>
-          <h2 className="title">Coming with family or friends?</h2>
-          <p className="lead">Book your table and we will have it ready when you arrive.</p>
-          <Link className="btn" to="/reserve">Reserve a table</Link>
+          <h2 className="title">Hungry? Order now</h2>
+          <p className="lead">Pick your dishes and we will have them hot and ready, for delivery or pickup.</p>
+          <Link className="btn" to="/menu">Order online</Link>
         </Reveal>
       </section>
     </>

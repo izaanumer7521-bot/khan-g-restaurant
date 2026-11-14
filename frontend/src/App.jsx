@@ -5,7 +5,6 @@ import Footer from './components/Footer.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
 import Home from './pages/Home.jsx';
 import Menu from './pages/Menu.jsx';
-import Reserve from './pages/Reserve.jsx';
 import Contact from './pages/Contact.jsx';
 import Checkout from './pages/Checkout.jsx';
 import Login from './admin/Login.jsx';
@@ -13,7 +12,8 @@ import AdminLayout from './admin/AdminLayout.jsx';
 import Dashboard from './admin/Dashboard.jsx';
 import MenuManager from './admin/MenuManager.jsx';
 import Orders from './admin/Orders.jsx';
-import Reservations from './admin/Reservations.jsx';
+import Categories from './admin/Categories.jsx';
+import Settings from './admin/Settings.jsx';
 import Messages from './admin/Messages.jsx';
 
 function Public() {
@@ -28,7 +28,6 @@ export default function App() {
       <Route element={<Public />}>
         <Route path="/" element={<Home />} />
         <Route path="/menu" element={<Menu />} />
-        <Route path="/reserve" element={<Reserve />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="*" element={<div className="sec page center"><h1 className="title">Page not found</h1></div>} />
@@ -38,8 +37,9 @@ export default function App() {
         <Route index element={<Dashboard />} />
         <Route path="menu" element={<MenuManager />} />
         <Route path="orders" element={<Orders />} />
-        <Route path="reservations" element={<Reservations />} />
+        <Route path="categories" element={<Categories />} />
         <Route path="messages" element={<Messages />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>
   );

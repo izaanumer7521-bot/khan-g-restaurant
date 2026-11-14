@@ -1,6 +1,6 @@
 # Khan G Restaurant: MERN website (Vercel + MongoDB Atlas)
 
-Everything is stored in MongoDB Atlas: menu, orders, table requests, messages, admin login and dish photos.
+Everything is stored in MongoDB Atlas: menu, categories, orders, messages, admin login and dish photos.
 There is no sample data. Your menu starts empty and you add dishes from the admin panel.
 
 ## Deploy
@@ -27,7 +27,7 @@ Push the whole `khan-g-restaurant` folder to one GitHub repository. `.env` is gi
 - Deploy. Check `https://YOUR-SITE.vercel.app/api/health` shows `{"ok":true}`, then open the site.
 
 ### 6. Add your menu
-Open `https://YOUR-FRONTEND.vercel.app/admin/login`, sign in, go to Menu, and add dishes with photos.
+Open `https://YOUR-FRONTEND.vercel.app/admin/login`, sign in, go to Categories and add your categories, then Menu to add dishes with photos and Half/Full (or any size) prices. Change your email and password any time under Account.
 
 ## Local development
 ```

@@ -7,10 +7,16 @@ const User = model('User', new Schema({
   password: { type: String, required: true },
 }, { timestamps: true }));
 
+const Category = model('Category', new Schema({
+  name: { type: String, required: true, trim: true, unique: true },
+  order: { type: Number, default: 0 },
+}, { timestamps: true }));
+
 const MenuItem = model('MenuItem', new Schema({
   name: { type: String, required: true, trim: true },
   description: { type: String, default: '' },
-  price: { type: Number, required: true, min: 0 },
+  price: { type: Number, required: true, min: 0 }, // lowest price (used when there are no sizes)
+  sizes: { type: [new Schema({ label: { type: String, required: true, trim: true }, price: { type: Number, required: true, min: 0 } }, { _id: false })], default: [] },
   category: { type: String, required: true, trim: true },
   image: { type: String, default: '' },
   available: { type: Boolean, default: true },
@@ -28,16 +34,6 @@ const Order = model('Order', new Schema({
   status: { type: String, enum: ['pending', 'preparing', 'on-the-way', 'completed', 'cancelled'], default: 'pending' },
 }, { timestamps: true }));
 
-const Reservation = model('Reservation', new Schema({
-  name: { type: String, required: true, trim: true },
-  phone: { type: String, required: true, trim: true },
-  date: { type: String, required: true },
-  time: { type: String, required: true },
-  guests: { type: Number, required: true, min: 1, max: 50 },
-  note: { type: String, default: '' },
-  status: { type: String, enum: ['pending', 'confirmed', 'cancelled'], default: 'pending' },
-}, { timestamps: true }));
-
 const Message = model('Message', new Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, default: '' },
@@ -51,4 +47,4 @@ const Image = model('Image', new Schema({
   contentType: { type: String, required: true },
 }, { timestamps: true }));
 
-module.exports = { User, MenuItem, Order, Reservation, Message, Image };
+module.exports = { User, Category, MenuItem, Order, Message, Image };

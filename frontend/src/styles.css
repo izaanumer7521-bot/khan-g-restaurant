@@ -240,3 +240,30 @@ input[type=date],input[type=time]{color-scheme:dark}
 .hero-shade{background:radial-gradient(ellipse at center,rgba(0,0,0,.35) 20%,rgba(0,0,0,.85) 100%),linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.15) 30%,rgba(0,0,0,.7))}
 .stage h1,.stage h2,.stage p{text-shadow:0 2px 24px rgba(0,0,0,.85),0 0 4px rgba(0,0,0,.6)}
 .stage p{color:#fff}
+
+/* dish animations */
+@keyframes dishIn{from{opacity:0;transform:translateY(34px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+@keyframes bump{0%,100%{transform:scale(1)}30%{transform:scale(1.22)}60%{transform:scale(.94)}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(227,24,37,.7)}50%{box-shadow:0 0 0 8px rgba(227,24,37,0)}}
+.grid.stagger .dish{opacity:0;animation:dishIn .6s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:calc(var(--i) * 70ms)}
+.dish{transition:border-color .25s,transform .3s,box-shadow .3s}
+.dish:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(0,0,0,.6)}
+.dish-img img{transition:transform .7s cubic-bezier(.2,.7,.2,1)}
+.dish:hover .dish-img img{transform:scale(1.08)}
+.dish-img .new{position:absolute;top:10px;left:10px;background:var(--red);color:#fff;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:999px;animation:glow 1.8s infinite}
+.sizes{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.sizes button{background:none;border:1.5px solid var(--line);border-radius:999px;padding:5px 14px;font-weight:600;font-size:.82rem;cursor:pointer;transition:.2s}
+.sizes button.on{background:var(--fg);color:#000;border-color:var(--fg)}
+.price-pop{animation:pop .35s ease}
+.btn.added{background:#1f9d55;border-color:#1f9d55}
+.cartbtn.bump{animation:bump .6s ease}
+.fly{position:fixed;width:48px;height:48px;border-radius:50%;background:var(--red) center/cover;z-index:200;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.6)}
+@media (prefers-reduced-motion:reduce){.grid.stagger .dish{opacity:1;animation:none}}
+/* admin: sizes and categories */
+.size-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:center}
+.size-row .link{padding:0 6px}
+.cat-add{display:flex;gap:10px;margin-bottom:18px}
+.cat-add input,.item input.cat-edit{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px 14px;flex:1;min-width:0}
+.hint-sm{font-size:.82rem;color:var(--mute)}
+.ok{color:#4cd38a}

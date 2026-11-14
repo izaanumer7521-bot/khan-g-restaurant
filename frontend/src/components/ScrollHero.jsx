@@ -76,7 +76,7 @@ export default function ScrollHero() {
           <h2>Your table is waiting</h2>
           <div className="btns">
             <Link to="/menu" className="btn">View menu</Link>
-            <Link to="/reserve" className="btn ghost">Reserve a table</Link>
+            <Link to="/contact" className="btn ghost">Contact us</Link>
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 
-const links = [['/admin', 'Dashboard'], ['/admin/orders', 'Orders'], ['/admin/reservations', 'Tables'], ['/admin/menu', 'Menu'], ['/admin/messages', 'Messages']];
+const links = [['/admin', 'Dashboard'], ['/admin/orders', 'Orders'], ['/admin/menu', 'Menu'], ['/admin/categories', 'Categories'], ['/admin/messages', 'Messages'], ['/admin/settings', 'Account']];
 
 export default function AdminLayout() {
   const nav = useNavigate();

@@ -11,7 +11,6 @@ export default function Dashboard() {
   if (!s) return <p className="muted">Loading…</p>;
   const cards = [
     ['New orders', s.pendingOrders, '/admin/orders'],
-    ['Pending table requests', s.pendingReservations, '/admin/reservations'],
     ['Unread messages', s.unreadMessages, '/admin/messages'],
     ['Dishes on menu', s.dishes, '/admin/menu'],
     ['Total orders', s.orders, '/admin/orders'],

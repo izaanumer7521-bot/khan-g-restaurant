@@ -16,8 +16,16 @@ const create = wrap(async (req, res) => {
     const m = dbItems.find((x) => String(x._id) === String(i.id));
     if (!m) return res.status(400).json({ message: 'An item in your cart is no longer available. Please review your cart.' });
     const qty = Math.min(50, Math.max(1, parseInt(i.qty, 10) || 1));
-    lines.push({ name: m.name, price: m.price, qty });
-    total += m.price * qty;
+    let price = m.price;
+    let name = m.name;
+    if (m.sizes && m.sizes.length) {
+      const sz = m.sizes.find((x) => x.label === i.size);
+      if (!sz) return res.status(400).json({ message: 'Please choose a size for ' + m.name + ' again.' });
+      price = sz.price;
+      name = m.name + ' (' + sz.label + ')';
+    }
+    lines.push({ name, price, qty });
+    total += price * qty;
   }
   const order = await Order.create({
     customerName, phone, address, note, items: lines, total,

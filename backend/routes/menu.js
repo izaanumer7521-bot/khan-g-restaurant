@@ -20,16 +20,29 @@ const dropImage = async (url) => {
   if (m) await Image.findByIdAndDelete(m[1]);
 };
 
-const fromBody = (b) => ({
+// sizes arrive as JSON: [{ label: 'Half', price: 900 }, { label: 'Full', price: 1700 }]
+const parseSizes = (raw) => {
+  try {
+    return (JSON.parse(raw || '[]') || [])
+      .map((s) => ({ label: String(s.label || '').trim(), price: Number(s.price) }))
+      .filter((s) => s.label && Number.isFinite(s.price) && s.price >= 0);
+  } catch { return []; }
+};
+
+const fromBody = (b) => {
+  const sizes = parseSizes(b.sizes);
+  return {
   name: b.name,
   description: b.description,
-  price: Number(b.price),
+  sizes,
+  price: sizes.length ? Math.min(...sizes.map((s) => s.price)) : Number(b.price),
   category: b.category,
   available: b.available !== 'false',
   featured: b.featured === 'true',
-});
+  };
+};
 
-r.get('/', wrap(async (req, res) => res.json(await MenuItem.find().sort({ category: 1, createdAt: 1 }))));
+r.get('/', wrap(async (req, res) => res.json(await MenuItem.find().sort({ createdAt: 1 }))));
 
 r.post('/', auth, upload.single('image'), wrap(async (req, res) => {
   const data = fromBody(req.body);
