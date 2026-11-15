@@ -1,6 +1,7 @@
 const r = require('express').Router();
 const multer = require('multer');
-const { MenuItem, Image } = require('../models');
+const { MenuItem, Category, Image } = require('../models');
+const { importDefaultMenu } = require('../menuData');
 const auth = require('../middleware/auth');
 const wrap = require('../middleware/wrap');
 
@@ -43,6 +44,15 @@ const fromBody = (b) => {
 };
 
 r.get('/', wrap(async (req, res) => res.json(await MenuItem.find().sort({ createdAt: 1 }))));
+
+r.get('/:id([a-f0-9]{24})', wrap(async (req, res) => {
+  const doc = await MenuItem.findById(req.params.id);
+  if (!doc) return res.status(404).json({ message: 'Dish not found' });
+  res.json(doc);
+}));
+
+// One click from the admin panel: loads the full Khan G menu (skips dishes that already exist)
+r.post('/import-default', auth, wrap(async (req, res) => res.json(await importDefaultMenu({ Category, MenuItem }))));
 
 r.post('/', auth, upload.single('image'), wrap(async (req, res) => {
   const data = fromBody(req.body);

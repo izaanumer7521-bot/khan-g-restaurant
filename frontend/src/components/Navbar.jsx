@@ -13,7 +13,7 @@ export default function Navbar() {
     window.addEventListener('kg:added', f);
     return () => window.removeEventListener('kg:added', f);
   }, []);
-  useEffect(() => setOpen(false), [loc.pathname]);
+  useEffect(() => { setOpen(false); }, [loc.pathname]);
   useEffect(() => {
     const f = () => setSolid(window.scrollY > 40);
     f();

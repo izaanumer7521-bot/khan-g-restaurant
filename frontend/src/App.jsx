@@ -5,6 +5,7 @@ import Footer from './components/Footer.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
 import Home from './pages/Home.jsx';
 import Menu from './pages/Menu.jsx';
+import Product from './pages/Product.jsx';
 import Contact from './pages/Contact.jsx';
 import Checkout from './pages/Checkout.jsx';
 import Login from './admin/Login.jsx';
@@ -18,7 +19,7 @@ import Messages from './admin/Messages.jsx';
 
 function Public() {
   const { pathname } = useLocation();
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return (<><Navbar /><main><Outlet /></main><Footer /><CartDrawer /></>);
 }
 
@@ -28,6 +29,7 @@ export default function App() {
       <Route element={<Public />}>
         <Route path="/" element={<Home />} />
         <Route path="/menu" element={<Menu />} />
+        <Route path="/menu/:id" element={<Product />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="*" element={<div className="sec page center"><h1 className="title">Page not found</h1></div>} />

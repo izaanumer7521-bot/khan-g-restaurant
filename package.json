@@ -6,7 +6,8 @@
     "build": "vite build frontend",
     "dev:api": "cd backend && node server.js",
     "dev:web": "vite frontend",
-    "seed": "cd backend && node seed.js"
+    "seed": "cd backend && node seed.js",
+    "seed:menu": "cd backend && node seed-menu.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

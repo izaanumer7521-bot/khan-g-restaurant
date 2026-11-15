@@ -11,15 +11,15 @@ export function CartProvider({ children }) {
     try { return (JSON.parse(localStorage.getItem('kg_cart')) || []).map((i) => ({ ...i, key: i.key || keyOf(i._id, i.size) })); } catch { return []; }
   });
   const [open, setOpen] = useState(false);
-  useEffect(() => localStorage.setItem('kg_cart', JSON.stringify(items)), [items]);
+  useEffect(() => { try { localStorage.setItem('kg_cart', JSON.stringify(items)); } catch {} }, [items]);
 
   // p = dish, size = { label, price } or undefined for single-price dishes
-  const add = (p, size) => {
+  const add = (p, size, n = 1) => {
     const key = keyOf(p._id, size && size.label);
     const price = size ? size.price : p.price;
     setItems((c) => c.find((i) => i.key === key)
-      ? c.map((i) => (i.key === key ? { ...i, qty: i.qty + 1 } : i))
-      : [...c, { key, _id: p._id, name: p.name, size: size ? size.label : '', price, qty: 1 }]);
+      ? c.map((i) => (i.key === key ? { ...i, qty: i.qty + n } : i))
+      : [...c, { key, _id: p._id, name: p.name, size: size ? size.label : '', price, qty: n }]);
     window.dispatchEvent(new Event('kg:added'));
   };
   const setQty = (key, q) => setItems((c) => (q <= 0 ? c.filter((i) => i.key !== key) : c.map((i) => (i.key === key ? { ...i, qty: q } : i))));
