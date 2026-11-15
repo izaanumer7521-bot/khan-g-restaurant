@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { SITE } from '../config.js';
 import Social from './Social.jsx';
+import { InstallButton } from '../lib/install.jsx';
 
 export default function Footer() {
   return (
@@ -26,6 +27,8 @@ export default function Footer() {
           <h4>Explore</h4>
           <p><Link to="/menu">Menu</Link></p>
           <p><Link to="/contact">Contact</Link></p>
+          <p><Link to="/signin">Sign in</Link></p>
+          <div style={{ marginTop: 14 }}><InstallButton label="Install the app" /></div>
         </div>
       </div>
       <div className="copy">© {new Date().getFullYear()} Khan G Restaurant. All rights reserved.</div>

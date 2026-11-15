@@ -44,3 +44,18 @@ Until it exists, a built-in 3D plate animation is shown.
 
 ## Client details
 Phone, WhatsApp, address and hours: `frontend/src/config.js`.
+
+
+## Installable apps and order alerts
+
+The website is a PWA, so customers can install it (footer, phone menu and a banner offer "Install the app").
+The admin panel at `/admin` is a **separate installable app** called "Khan G Admin" (Account page or the sidebar button).
+
+**Order alerts (admin phone/laptop)**
+1. Add these environment variables in Vercel (Settings, Environment Variables) and redeploy:
+   `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (make a pair with `npx web-push generate-vapid-keys`), optional `DELIVERY_CHARGE` (default 100).
+2. On each admin phone/laptop: open `/admin`, log in, go to Account, tap **Turn on alerts**, allow notifications, then tap **Send test alert**.
+3. iPhone: first Share, Add to Home Screen, then open the admin app from the Home Screen and turn on alerts (iOS 16.4 or newer).
+
+Every new order sends a notification (with the phone's notification sound) to every device that turned alerts on, even when the app is closed.
+When the admin app is open it also rings a louder alarm and shows a pop-up until you tap it.

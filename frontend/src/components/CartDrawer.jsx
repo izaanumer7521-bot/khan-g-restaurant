@@ -25,7 +25,8 @@ export default function CartDrawer() {
         </div>
         {items.length > 0 && (
           <div className="drawer-f">
-            <div className="row"><span>Total</span><strong>{money(total)}</strong></div>
+            <div className="row"><span>Subtotal</span><strong>{money(total)}</strong></div>
+            <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>Delivery orders add a small delivery charge at checkout.</p>
             <button className="btn full" onClick={() => { setOpen(false); nav('/checkout'); }}>Checkout</button>
           </div>
         )}

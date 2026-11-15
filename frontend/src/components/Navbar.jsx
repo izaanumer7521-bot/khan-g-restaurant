@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useCart } from '../store.jsx';
 import { SITE } from '../config.js';
+import { useCustomer } from '../lib/customer.js';
+import { InstallButton } from '../lib/install.jsx';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [solid, setSolid] = useState(false);
   const { count, setOpen: openCart } = useCart();
   const loc = useLocation();
+  const me = useCustomer();
   const [bump, setBump] = useState(false);
   useEffect(() => {
     const f = () => { setBump(false); requestAnimationFrame(() => setBump(true)); setTimeout(() => setBump(false), 700); };
@@ -32,6 +35,7 @@ export default function Navbar() {
           {links.map(([to, l]) => <NavLink key={to} to={to} end>{l}</NavLink>)}
         </nav>
         <div className="nav-r">
+          <Link to="/signin" className="signin-link">{me ? me.name.split(' ')[0] : 'Sign in'}</Link>
           <button className={'cartbtn' + (bump ? ' bump' : '')} onClick={() => openCart(true)} aria-label="Open cart">
             Cart{count > 0 && <i>{count}</i>}
           </button>
@@ -48,6 +52,8 @@ export default function Navbar() {
           {links.map(([to, l]) => <NavLink key={to} to={to} end tabIndex={open ? 0 : -1}>{l}</NavLink>)}
         </nav>
         <Link to="/menu" className="btn full" tabIndex={open ? 0 : -1}>Order online</Link>
+        <Link to="/signin" className="btn ghost full" tabIndex={open ? 0 : -1}>{me ? 'Signed in as ' + me.name.split(' ')[0] : 'Sign in'}</Link>
+        <InstallButton className="btn ghost full" label="Install the app" />
         <a className="btn ghost full" href={'tel:' + SITE.phone.replace(/\s/g, '')} tabIndex={open ? 0 : -1}>Call {SITE.phone}</a>
         <p className="mnav-note">{SITE.hours.map(([k, v]) => k + ': ' + v).join(' · ')}</p>
       </aside>

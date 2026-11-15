@@ -30,8 +30,25 @@ const Order = model('Order', new Schema({
   type: { type: String, enum: ['delivery', 'pickup'], default: 'delivery' },
   note: { type: String, default: '' },
   items: [{ name: String, price: Number, qty: Number }],
+  subtotal: { type: Number, default: 0 },
+  deliveryCharge: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
   status: { type: String, enum: ['pending', 'preparing', 'on-the-way', 'completed', 'cancelled'], default: 'pending' },
+}, { timestamps: true }));
+
+const Customer = model('Customer', new Schema({
+  name: { type: String, required: true, trim: true },
+  phone: { type: String, required: true, trim: true, unique: true },
+  address: { type: String, default: '' },
+  lastLogin: { type: Date, default: Date.now },
+}, { timestamps: true }));
+
+// One row per browser/phone that turned on order alerts in the admin panel
+const PushSub = model('PushSub', new Schema({
+  endpoint: { type: String, required: true, unique: true },
+  keys: { p256dh: String, auth: String },
+  user: { type: Schema.Types.ObjectId, ref: 'User' },
+  device: { type: String, default: '' },
 }, { timestamps: true }));
 
 const Message = model('Message', new Schema({
@@ -47,4 +64,4 @@ const Image = model('Image', new Schema({
   contentType: { type: String, required: true },
 }, { timestamps: true }));
 
-module.exports = { User, Category, MenuItem, Order, Message, Image };
+module.exports = { User, Category, MenuItem, Order, Customer, PushSub, Message, Image };

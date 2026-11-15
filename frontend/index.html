@@ -4,12 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
-    <meta name="description" content="Khan G Restaurant. Breakfast, karahi, BBQ and biryani. Order online or reserve a table." />
+    <meta name="description" content="Khan G Restaurant. Breakfast, karahi, BBQ and biryani. Order online for delivery or pickup." />
     <title>Khan G Restaurant</title>
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Two installable apps: the website (/) and the admin panel (/admin) -->
+    <script>
+      (function () {
+        var admin = location.pathname.indexOf('/admin') === 0;
+        var l = document.createElement('link');
+        l.rel = 'manifest';
+        l.href = admin ? '/admin.webmanifest' : '/manifest.webmanifest';
+        document.head.appendChild(l);
+        if (admin) {
+          var a = document.querySelector('link[rel=apple-touch-icon]');
+          if (a) a.href = '/admin-192.png';
+        }
+      })();
+    </script>
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Khan G" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />

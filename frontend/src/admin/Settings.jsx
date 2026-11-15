@@ -1,7 +1,39 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
+import { InstallButton } from '../lib/install.jsx';
+import { syncPush, turnOffPush, pushSupported } from '../lib/push.js';
+import { chime, unlockAudio } from '../lib/sound.js';
+
+function Alerts() {
+  const [st, setSt] = useState('checking');
+  const [note, setNote] = useState('');
+  useEffect(() => { syncPush(false).then(setSt).catch(() => setSt('off')); }, []);
+  const on = async () => { unlockAudio(); chime(); try { setSt(await syncPush(true)); } catch (e) { setNote(e.message); } };
+  const off = async () => { await turnOffPush(); setSt('off'); };
+  const test = async () => {
+    unlockAudio(); chime(); setNote('');
+    try { const r = await api('/push/test', { method: 'POST' }); setNote(r.devices ? `Test alert sent to ${r.sent} of ${r.devices} device(s).` : 'No device has alerts turned on yet.'); }
+    catch (e) { setNote(e.message); }
+  };
+  const label = { on: 'On for this device', off: 'Off', denied: 'Blocked in your browser settings', unsupported: 'Not supported here (on iPhone, install the app first)', 'server-off': 'Server is missing its VAPID keys', checking: '…' }[st];
+  return (
+    <div className="card" style={{ maxWidth: 480, marginBottom: 24 }}>
+      <h3>Order alerts</h3>
+      <p className="muted">Get a notification with sound on this phone or laptop every time a customer places an order.</p>
+      <p>Status: <strong className={st === 'on' ? 'ok' : ''}>{label}</strong></p>
+      <div className="btns" style={{ justifyContent: 'flex-start' }}>
+        {pushSupported() && st !== 'on' && <button className="btn sm" onClick={on}>Turn on alerts</button>}
+        {st === 'on' && <button className="btn sm" onClick={test}>Send test alert</button>}
+        {st === 'on' && <button className="btn ghost sm" onClick={off}>Turn off</button>}
+      </div>
+      {note && <p className="muted" style={{ marginTop: 10 }}>{note}</p>}
+    </div>
+  );
+}
 
 export default function Settings() {
+  const nav = useNavigate();
   const [me, setMe] = useState(null);
   const [f, setF] = useState({ currentPassword: '', newEmail: '', newPassword: '', confirm: '' });
   const [msg, setMsg] = useState({ ok: false, text: '' });
@@ -25,6 +57,14 @@ export default function Settings() {
   return (
     <>
       <h1>Account</h1>
+      <Alerts />
+      <div className="card" style={{ maxWidth: 480, marginBottom: 24 }}>
+        <h3>Install the admin app</h3>
+        <p className="muted">Put this panel on your phone or computer like a normal app, separate from the website.</p>
+        <InstallButton className="btn sm" label="Install admin app" name="Khan G Admin" />
+        <button className="btn ghost sm" style={{ marginLeft: 8 }} onClick={() => { localStorage.removeItem('kg_token'); nav('/admin/login'); }}>Log out</button>
+      </div>
+      <h2>Admin email and password</h2>
       <p className="muted">Change the email and password you use to sign in to this panel.</p>
       <form className="form card" style={{ maxWidth: 480 }} onSubmit={save}>
         <label>Email<input type="email" required value={f.newEmail} onChange={set('newEmail')} /></label>
