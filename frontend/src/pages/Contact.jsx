@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api.js';
+import Social from '../components/Social.jsx';
 import { SITE } from '../config.js';
 
 export default function Contact() {
@@ -22,6 +23,8 @@ export default function Contact() {
           <p className="lead">Questions, feedback or a big event coming up? Send a message or call us.</p>
           <p><strong>Address</strong><br /><span className="muted">{SITE.address}</span></p>
           <p><strong>Phone</strong><br /><a href={'tel:' + SITE.phone.replace(/\s/g, '')}>{SITE.phone}</a></p>
+          <p><strong>Follow us</strong></p>
+          <Social />
           <p><strong>Hours</strong><br />{SITE.hours.map(([a, b]) => <span className="muted" key={a}>{a}: {b}<br /></span>)}</p>
           <div className="btns">
             <a className="btn" href={'https://wa.me/' + SITE.whatsapp} target="_blank" rel="noreferrer">Chat on WhatsApp</a>

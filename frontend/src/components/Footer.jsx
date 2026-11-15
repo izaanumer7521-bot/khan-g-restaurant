@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { SITE } from '../config.js';
+import Social from './Social.jsx';
 
 export default function Footer() {
   return (
@@ -18,6 +19,8 @@ export default function Footer() {
           <p className="muted">{SITE.address}</p>
           <p className="muted"><a href={'tel:' + SITE.phone.replace(/\s/g, '')}>{SITE.phone}</a></p>
           <p className="muted"><a href={SITE.mapLink} target="_blank" rel="noreferrer">Open in Maps</a></p>
+          <h4 style={{ marginTop: 18 }}>Follow us</h4>
+          <Social />
         </div>
         <div>
           <h4>Explore</h4>
