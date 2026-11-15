@@ -87,3 +87,13 @@ Every new order then sends a full message (customer, phone, address, items, tota
 **Admin > Devices**: every signed-in customer and admin device. "Log out device" deletes that session and the device is signed out automatically (within about 30 seconds, or on its next action). Customers can be **blocked** (logged out everywhere, cannot sign in or order) and **unblocked** from Customers or Devices.
 
 After deploying v9, the admin signs in once more and customers sign in once more (old logins have no device session).
+
+
+## v10: order notifications on every admin device
+
+- **No setup needed.** The server creates its own push keys the first time and stores them in MongoDB. `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` are now optional. If you already set them and they are valid, they are still used.
+- **Add as many phones and computers as you like.** On each one open `/admin`, go to **Account > Notifications** and press **Turn on alerts**. Every device gets every new order, with the phone's notification sound, even when the app is closed.
+- **Self-repairing.** If the browser replaces a phone's registration, the service worker re-registers it in the background. Opening the admin app also re-registers the device.
+- **Per-device control.** Account > Notifications lists each device with its last delivery, a Test button and Remove. Logging a device out in Admin > Devices also stops its alerts.
+- Admin logins now stay signed in for 90 days of use (the timer restarts every time the device is used), so the restaurant phone keeps receiving alerts.
+- After deploying, open the admin app once on each phone and press **Turn on alerts** (or **Repair** if the card says so).

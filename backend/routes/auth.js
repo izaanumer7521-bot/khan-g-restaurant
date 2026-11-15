@@ -3,8 +3,7 @@ const bcrypt = require('bcryptjs');
 const { User } = require('../models');
 const auth = require('../middleware/auth');
 const wrap = require('../middleware/wrap');
-const { Session } = require('../models');
-const { startSession } = require('../lib/sessions');
+const { startSession, dropSession } = require('../lib/sessions');
 
 r.post('/login', wrap(async (req, res) => {
   const { email, password } = req.body;
@@ -17,7 +16,7 @@ r.post('/login', wrap(async (req, res) => {
 }));
 
 // Log this device out (removes its session so the token stops working everywhere)
-r.post('/logout', auth, wrap(async (req, res) => { await Session.findByIdAndDelete(req.sessionId); res.json({ ok: true }); }));
+r.post('/logout', auth, wrap(async (req, res) => { await dropSession(req.sessionId); res.json({ ok: true }); }));
 
 r.get('/me', auth, (req, res) => res.json({ ...req.user.toObject(), sessionId: req.sessionId }));
 

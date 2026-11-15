@@ -2,6 +2,7 @@ const r = require('express').Router();
 const { Session, Customer, User } = require('../models');
 const auth = require('../middleware/auth');
 const wrap = require('../middleware/wrap');
+const { dropSession } = require('../lib/sessions');
 
 // Admin: every device that is currently signed in (customers and admin)
 r.get('/', auth, wrap(async (req, res) => {
@@ -25,7 +26,7 @@ r.get('/', auth, wrap(async (req, res) => {
 }));
 
 // Remove one device: its token stops working, so that phone/computer is logged out on its next request.
-r.delete('/:id', auth, wrap(async (req, res) => { await Session.findByIdAndDelete(req.params.id); res.json({ ok: true }); }));
+r.delete('/:id', auth, wrap(async (req, res) => { await dropSession(req.params.id); res.json({ ok: true }); }));
 
 // Remove every device of one customer
 r.delete('/', auth, wrap(async (req, res) => {

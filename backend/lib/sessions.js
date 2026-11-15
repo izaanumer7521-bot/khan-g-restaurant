@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
-const { Session } = require('../models');
+const { Session, PushSub } = require('../models');
 const { deviceName, clientIp } = require('./device');
 
 const DAY = 24 * 60 * 60 * 1000;
-const LIFE = { admin: 7 * DAY, customer: 30 * DAY };
+// Sessions slide: every use pushes the expiry forward, so a phone that is used now and then stays signed in (and keeps its order alerts).
+const LIFE = { admin: 90 * DAY, customer: 30 * DAY };
 
 // Creates a session row and returns a signed token that carries its id.
 async function startSession(kind, owner, req) {
@@ -11,7 +12,8 @@ async function startSession(kind, owner, req) {
     kind, ...(kind === 'admin' ? { user: owner._id } : { customer: owner._id }),
     device: deviceName(req.headers['user-agent']), ip: clientIp(req), expiresAt: new Date(Date.now() + LIFE[kind]),
   });
-  const token = jwt.sign({ id: owner._id, sid: s._id, k: kind }, process.env.JWT_SECRET, { expiresIn: Math.floor(LIFE[kind] / 1000) });
+  // No expiry inside the token: the session row (which slides and can be revoked) is the authority.
+  const token = jwt.sign({ id: owner._id, sid: s._id, k: kind }, process.env.JWT_SECRET);
   return { token, session: s };
 }
 
@@ -21,8 +23,13 @@ async function readSession(token, kind) {
   if (!p.sid || p.k !== kind) return null;
   const s = await Session.findById(p.sid);
   if (!s) return null;
-  if (!s.lastActiveAt || Date.now() - s.lastActiveAt.getTime() > 60 * 1000) { s.lastActiveAt = new Date(); s.save().catch(() => {}); }
+  if (!s.lastActiveAt || Date.now() - s.lastActiveAt.getTime() > 60 * 1000) { s.lastActiveAt = new Date(); s.expiresAt = new Date(Date.now() + LIFE[s.kind]); s.save().catch(() => {}); }
   return { session: s, id: p.id };
 }
 
-module.exports = { startSession, readSession };
+// Ends a login and stops order alerts on that same device.
+async function dropSession(id) {
+  await Promise.all([Session.findByIdAndDelete(id), PushSub.deleteMany({ session: id })]);
+}
+
+module.exports = { startSession, readSession, dropSession };

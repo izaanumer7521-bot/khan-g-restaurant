@@ -64,10 +64,14 @@ const PushSub = model('PushSub', new Schema({
   endpoint: { type: String, required: true, unique: true },
   keys: { p256dh: String, auth: String },
   user: { type: Schema.Types.ObjectId, ref: 'User' },
-  device: { type: String, default: '' },
+  session: { type: Schema.Types.ObjectId, ref: 'Session' }, // the admin login this phone belongs to; removing that device in Admin > Devices also stops its alerts
+  device: { type: String, default: '' }, // short label like "Chrome on Android"
   lastOkAt: Date,
   lastError: { type: String, default: '' },
 }, { timestamps: true }));
+
+// Small key/value store. Holds the auto-generated push (VAPID) keys so alerts need no manual setup.
+const Setting = model('Setting', new Schema({ key: { type: String, unique: true, required: true }, value: Schema.Types.Mixed }, { timestamps: true }));
 
 const Message = model('Message', new Schema({
   name: { type: String, required: true, trim: true },
@@ -82,4 +86,4 @@ const Image = model('Image', new Schema({
   contentType: { type: String, required: true },
 }, { timestamps: true }));
 
-module.exports = { User, Category, MenuItem, Order, Customer, Session, PushSub, Message, Image };
+module.exports = { User, Category, MenuItem, Order, Customer, Session, PushSub, Setting, Message, Image };
