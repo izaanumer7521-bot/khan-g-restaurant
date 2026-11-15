@@ -35,7 +35,7 @@ export default function Orders() {
         <div className={'item col order' + (o.status === 'pending' ? ' unread' : '')} key={o._id}>
           <div className="bar">
             <div>
-              <strong>#{no(o)} · {o.customerName}</strong> <span className={'badge ' + o.type}>{o.type}</span>
+              <strong>#{no(o)} · {o.customerName}</strong> <span className={'badge ' + o.type}>{o.type}</span><span className={'badge ' + (o.paymentMethod === 'advance' ? 'pending' : 'pickup')}>{o.paymentMethod === 'advance' ? 'Pays rider online · ' + (o.paymentType || '') : 'Cash'}</span>
               <div className="muted">{new Date(o.createdAt).toLocaleString()}</div>
             </div>
             <select value={o.status} onChange={(e) => patch(o._id, { status: e.target.value })} aria-label="Order status">

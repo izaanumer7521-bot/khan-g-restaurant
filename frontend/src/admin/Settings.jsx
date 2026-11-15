@@ -118,7 +118,7 @@ export default function Settings() {
     <>
       <h1>Account</h1>
       <Alerts />
-      <AdminInstall onLogout={() => { localStorage.removeItem('kg_token'); nav('/admin/login'); }} />
+      <AdminInstall onLogout={async () => { try { await api('/auth/logout', { method: 'POST' }); } catch { /* ignore */ } localStorage.removeItem('kg_token'); nav('/admin/login'); }} />
       <h2>Admin email and password</h2>
       <p className="muted">Change the email and password you use to sign in to this panel.</p>
       <form className="form card" style={{ maxWidth: 480 }} onSubmit={save}>

@@ -74,3 +74,16 @@ Telegram rings on any phone even when the admin app is closed or the phone was o
 3. In a browser open `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` and copy the number after `"chat":{"id":`.
 4. In Vercel add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`, then redeploy.
 Every new order then sends a full message (customer, phone, address, items, total). To alert more people, add the bot to a Telegram group and use the group's chat id.
+
+
+## v9 additions
+
+**Customer profile** (`/profile`): live order tracking (updates every 15 s), past order history, and editable name/address. Customers sign in with name + phone as before; each device now gets its own session.
+
+**Payment at checkout**: Cash on delivery (cash at pickup for pickup orders) or **Advance**: the customer pays the rider online (Easypaisa, JazzCash or bank transfer) when the order arrives. Edit the types, descriptions and optional rider account numbers in `frontend/src/config.js` (`PAY_TYPES`). If you add or remove a type, update `PAY_TYPES` in `backend/routes/orders.js` too. Orders show the payment method in the admin Orders page and in the Telegram alert.
+
+**Admin redesign**: dashboard layout with KPI cards, charts and rankings; phones get a hamburger menu and 2-up cards. Same black and red theme, same pages and functions.
+
+**Admin > Devices**: every signed-in customer and admin device. "Log out device" deletes that session and the device is signed out automatically (within about 30 seconds, or on its next action). Customers can be **blocked** (logged out everywhere, cannot sign in or order) and **unblocked** from Customers or Devices.
+
+After deploying v9, the admin signs in once more and customers sign in once more (old logins have no device session).

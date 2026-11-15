@@ -34,6 +34,9 @@ const Order = model('Order', new Schema({
   deliveryCharge: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
   status: { type: String, enum: ['pending', 'preparing', 'on-the-way', 'completed', 'cancelled'], default: 'pending' },
+  // cod = cash on delivery/pickup. advance = customer pays the rider online (Easypaisa, JazzCash, bank) when the order arrives.
+  paymentMethod: { type: String, enum: ['cod', 'advance'], default: 'cod' },
+  paymentType: { type: String, default: '' },
 }, { timestamps: true }));
 
 const Customer = model('Customer', new Schema({
@@ -41,6 +44,19 @@ const Customer = model('Customer', new Schema({
   phone: { type: String, required: true, trim: true, unique: true },
   address: { type: String, default: '' },
   lastLogin: { type: Date, default: Date.now },
+  blocked: { type: Boolean, default: false },
+  blockedAt: Date,
+}, { timestamps: true }));
+
+// One row per signed-in browser/phone (customers and the admin). Deleting a row logs that device out.
+const Session = model('Session', new Schema({
+  kind: { type: String, enum: ['customer', 'admin'], required: true },
+  customer: { type: Schema.Types.ObjectId, ref: 'Customer' },
+  user: { type: Schema.Types.ObjectId, ref: 'User' },
+  device: { type: String, default: '' },
+  ip: { type: String, default: '' },
+  lastActiveAt: { type: Date, default: Date.now },
+  expiresAt: { type: Date, required: true, index: { expires: 0 } }, // MongoDB removes the row after this time
 }, { timestamps: true }));
 
 // One row per browser/phone that turned on order alerts in the admin panel
@@ -66,4 +82,4 @@ const Image = model('Image', new Schema({
   contentType: { type: String, required: true },
 }, { timestamps: true }));
 
-module.exports = { User, Category, MenuItem, Order, Customer, PushSub, Message, Image };
+module.exports = { User, Category, MenuItem, Order, Customer, Session, PushSub, Message, Image };

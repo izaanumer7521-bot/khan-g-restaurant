@@ -20,7 +20,7 @@ async function notifyTelegram(text) {
 const esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 function orderText(o, no) {
   const lines = o.items.map((i) => `• ${i.qty}× ${esc(i.name)} — Rs. ${i.price * i.qty}`).join('\n');
-  return `🔔 <b>NEW ORDER #${no}</b>\n\n👤 ${esc(o.customerName)}\n📞 ${esc(o.phone)}\n${o.type === 'delivery' ? '📍 ' + esc(o.address) : '🛍 Pickup'}\n\n${lines}\n\nDelivery: Rs. ${o.deliveryCharge || 0}\n<b>Total: Rs. ${o.total}</b>${o.note ? '\n📝 ' + esc(o.note) : ''}`;
+  return `🔔 <b>NEW ORDER #${no}</b>\n\n👤 ${esc(o.customerName)}\n📞 ${esc(o.phone)}\n${o.type === 'delivery' ? '📍 ' + esc(o.address) : '🛍 Pickup'}\n\n${lines}\n\nDelivery: Rs. ${o.deliveryCharge || 0}\n<b>Total: Rs. ${o.total}</b>\n💳 ${o.paymentMethod === 'advance' ? 'Pays the rider ONLINE (' + esc(o.paymentType) + ')' : 'Cash'}${o.note ? '\n📝 ' + esc(o.note) : ''}`;
 }
 
 module.exports = { notifyTelegram, telegramReady, orderText };

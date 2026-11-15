@@ -9,6 +9,9 @@ import Product from './pages/Product.jsx';
 import Contact from './pages/Contact.jsx';
 import Checkout from './pages/Checkout.jsx';
 import SignIn from './pages/SignIn.jsx';
+import Profile from './pages/Profile.jsx';
+import { getCustomerToken } from './lib/customer.js';
+import { api } from './api.js';
 import { InstallBanner } from './lib/install.jsx';
 import Login from './admin/Login.jsx';
 import AdminLayout from './admin/AdminLayout.jsx';
@@ -19,10 +22,19 @@ import Categories from './admin/Categories.jsx';
 import Settings from './admin/Settings.jsx';
 import Messages from './admin/Messages.jsx';
 import Customers from './admin/Customers.jsx';
+import Devices from './admin/Devices.jsx';
 
 function Public() {
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  // If the admin removes this device or blocks the customer, the next check (api.js) signs them out automatically.
+  useEffect(() => {
+    const check = () => { if (getCustomerToken() && document.visibilityState === 'visible') api('/customers/me').catch(() => {}); };
+    check();
+    const t = setInterval(check, 30000);
+    document.addEventListener('visibilitychange', check);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', check); };
+  }, []);
   return (<><Navbar /><main><Outlet /></main><Footer /><CartDrawer /><InstallBanner /></>);
 }
 
@@ -36,6 +48,7 @@ export default function App() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/signin" element={<SignIn />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="*" element={<div className="sec page center"><h1 className="title">Page not found</h1></div>} />
       </Route>
       <Route path="/admin/login" element={<Login />} />
@@ -45,6 +58,7 @@ export default function App() {
         <Route path="orders" element={<Orders />} />
         <Route path="categories" element={<Categories />} />
         <Route path="customers" element={<Customers />} />
+        <Route path="devices" element={<Devices />} />
         <Route path="messages" element={<Messages />} />
         <Route path="settings" element={<Settings />} />
       </Route>

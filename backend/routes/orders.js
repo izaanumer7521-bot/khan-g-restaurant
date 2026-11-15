@@ -7,6 +7,7 @@ const { notifyAdmins } = require('../lib/push');
 const { notifyTelegram, orderText } = require('../lib/telegram');
 
 const DELIVERY_CHARGE = process.env.DELIVERY_CHARGE ? Number(process.env.DELIVERY_CHARGE) : 100;
+const PAY_TYPES = ['easypaisa', 'jazzcash', 'bank']; // keep in sync with PAY_TYPES in frontend/src/config.js
 const STATUSES = ['pending', 'preparing', 'on-the-way', 'completed', 'cancelled'];
 const short = (o) => String(o._id).slice(-5).toUpperCase();
 const sum = (lines) => lines.reduce((s, l) => s + l.price * l.qty, 0);
@@ -29,11 +30,16 @@ r.post('/', wrap(async (req, res) => {
   const phone = normalizePhone(req.body.phone);
   const address = String(req.body.address || '').trim();
   const isPickup = type === 'pickup';
+  // Advance = pay the rider online when the order arrives. Only for delivery; pickup is always cash at the counter.
+  const advance = !isPickup && req.body.paymentMethod === 'advance';
+  const paymentType = advance ? String(req.body.paymentType || '') : '';
 
   if (customerName.length < 2) return res.status(400).json({ message: 'Please enter your name' });
   if (!phone) return res.status(400).json({ message: 'Please enter a valid phone number, e.g. 0309 6313398' });
   if (!isPickup && address.length < 5) return res.status(400).json({ message: 'Please enter your full delivery address' });
+  if (advance && !PAY_TYPES.includes(paymentType)) return res.status(400).json({ message: 'Please choose how you will pay the rider online (Easypaisa, JazzCash or Bank)' });
   if (!Array.isArray(items) || !items.length) return res.status(400).json({ message: 'Your cart is empty' });
+  if (await Customer.exists({ phone, blocked: true })) return res.status(403).json({ message: 'Sorry, we cannot take orders from this number. Please call the restaurant.', code: 'BLOCKED' });
 
   const dbItems = await MenuItem.find({ _id: { $in: items.map((i) => i.id) }, available: true });
   const lines = [];
@@ -56,6 +62,7 @@ r.post('/', wrap(async (req, res) => {
   const order = await Order.create({
     customerName, phone, address: isPickup ? '' : address, note: String(note || '').slice(0, 500), items: lines,
     subtotal, deliveryCharge, total: subtotal + deliveryCharge, type: isPickup ? 'pickup' : 'delivery',
+    paymentMethod: advance ? 'advance' : 'cod', paymentType,
   });
 
   // Save the customer so the admin sees them in the Customers list
@@ -66,14 +73,14 @@ r.post('/', wrap(async (req, res) => {
   const results = await Promise.allSettled([
     notifyAdmins({
       title: `New order #${short(order)} · Rs. ${order.total.toLocaleString('en-PK')}`,
-      body: `${customerName} · ${count} item${count > 1 ? 's' : ''} · ${isPickup ? 'Pickup' : 'Delivery'}`,
+      body: `${customerName} · ${count} item${count > 1 ? 's' : ''} · ${isPickup ? 'Pickup' : 'Delivery'} · ${advance ? 'Pays rider online' : 'Cash'}`,
       tag: 'order-' + order._id, url: '/admin/orders', orderId: String(order._id),
     }),
     notifyTelegram(orderText(order, short(order))),
   ]);
   results.forEach((r, i) => { if (r.status === 'rejected') console.error('alert failed', i, r.reason && r.reason.message); });
 
-  res.status(201).json({ _id: order._id, no: short(order), subtotal, deliveryCharge, total: order.total });
+  res.status(201).json({ _id: order._id, no: short(order), subtotal, deliveryCharge, total: order.total, paymentMethod: order.paymentMethod, paymentType: order.paymentType });
 }));
 
 r.get('/', auth, wrap(async (req, res) => res.json(await Order.find().sort({ createdAt: -1 }).limit(500))));

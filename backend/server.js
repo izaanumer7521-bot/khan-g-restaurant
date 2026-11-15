@@ -24,12 +24,14 @@ const connect = () => {
 app.use(wrap(async (req, res, next) => { await connect(); next(); }));
 
 app.use('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));
+app.use('/api/customers/signin', rateLimit({ windowMs: 15 * 60 * 1000, max: 60 }));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/menu', require('./routes/menu'));
 app.use('/api/images', require('./routes/images'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/customers', require('./routes/customers'));
+app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api/push', require('./routes/push'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/stats', require('./routes/stats'));
