@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useCart } from '../store.jsx';
+import { SITE } from '../config.js';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -22,22 +23,34 @@ export default function Navbar() {
   }, []);
   useEffect(() => { document.body.style.overflow = open ? 'hidden' : ''; }, [open]);
 
+  const links = [['/', 'Home'], ['/menu', 'Menu'], ['/contact', 'Contact']];
   return (
-    <header className={'nav' + (solid || open ? ' solid' : '')}>
-      <Link to="/" className="logo" aria-label="Khan G home"><img className="logo-img" src="/logo.png" alt="Khan G" /></Link>
-      <nav className={'links' + (open ? ' open' : '')}>
-        {[['/', 'Home'], ['/menu', 'Menu'], ['/contact', 'Contact']].map(([to, l]) => (
-          <NavLink key={to} to={to} end>{l}</NavLink>
-        ))}
-      </nav>
-      <div className="nav-r">
-        <button className={'cartbtn' + (bump ? ' bump' : '')} onClick={() => openCart(true)} aria-label="Open cart">
-          Cart{count > 0 && <i>{count}</i>}
-        </button>
-        <button className="burger" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>
-          <span /><span /><span />
-        </button>
-      </div>
-    </header>
+    <>
+      <header className={'nav' + (solid || open ? ' solid' : '')}>
+        <Link to="/" className="logo" aria-label="Khan G home"><img className="logo-img" src="/logo.png" alt="Khan G" /></Link>
+        <nav className="links">
+          {links.map(([to, l]) => <NavLink key={to} to={to} end>{l}</NavLink>)}
+        </nav>
+        <div className="nav-r">
+          <button className={'cartbtn' + (bump ? ' bump' : '')} onClick={() => openCart(true)} aria-label="Open cart">
+            Cart{count > 0 && <i>{count}</i>}
+          </button>
+          <button className={'burger' + (open ? ' on' : '')} onClick={() => setOpen(!open)} aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} aria-controls="mobile-menu">
+            <span /><span /><span />
+          </button>
+        </div>
+      </header>
+
+      {/* phone menu: lives outside the header so it always covers the full screen */}
+      <div className={'mnav-bg' + (open ? ' show' : '')} onClick={() => setOpen(false)} />
+      <aside id="mobile-menu" className={'mnav' + (open ? ' open' : '')} aria-hidden={!open}>
+        <nav>
+          {links.map(([to, l]) => <NavLink key={to} to={to} end tabIndex={open ? 0 : -1}>{l}</NavLink>)}
+        </nav>
+        <Link to="/menu" className="btn full" tabIndex={open ? 0 : -1}>Order online</Link>
+        <a className="btn ghost full" href={'tel:' + SITE.phone.replace(/\s/g, '')} tabIndex={open ? 0 : -1}>Call {SITE.phone}</a>
+        <p className="mnav-note">{SITE.hours.map(([k, v]) => k + ': ' + v).join(' · ')}</p>
+      </aside>
+    </>
   );
 }

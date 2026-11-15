@@ -12,18 +12,24 @@ export default function ScrollHero() {
   const wrap = useRef();
   const vid = useRef();
   const [noVideo, setNoVideo] = useState(false);
+  // phones get a smaller portrait video (decodes and seeks much faster)
+  const [src] = useState(() => (window.matchMedia('(max-width: 860px)').matches ? '/hero-m.mp4' : '/hero.mp4'));
 
   useEffect(() => {
     const el = wrap.current;
     let target = 0, cur = 0, raf, lastT = -1;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const phone = window.matchMedia('(max-width: 860px)').matches;
+    const ease = phone ? 0.2 : 0.1;
+    let lastSeek = 0;
 
     const onScroll = () => {
       const total = el.offsetHeight - window.innerHeight;
       target = Math.min(1, Math.max(0, -el.getBoundingClientRect().top / total));
     };
     const tick = () => {
-      cur += (target - cur) * (reduce ? 1 : 0.1);
+      cur += (target - cur) * (reduce ? 1 : ease);
+      if (Math.abs(target - cur) < 0.0005) cur = target;
       const s = (k, v) => el.style.setProperty(k, v.toFixed(3));
       s('--p', cur);
       s('--s1', 1 - seg(cur, 0.1, 0.2));
@@ -34,7 +40,12 @@ export default function ScrollHero() {
       const v = vid.current;
       if (v && v.duration) {
         const t = cur * (v.duration - 0.05);
-        if (Math.abs(t - lastT) > 0.02) { v.currentTime = t; lastT = t; }
+        const now = performance.now();
+        // never queue a new seek while one is still running, and cap the seek rate on phones
+        if (!v.seeking && Math.abs(t - lastT) > (phone ? 0.04 : 0.02) && now - lastSeek > (phone ? 50 : 0)) {
+          if (v.fastSeek) v.fastSeek(t); else v.currentTime = t;
+          lastT = t; lastSeek = now;
+        }
       }
       raf = requestAnimationFrame(tick);
     };
@@ -56,7 +67,7 @@ export default function ScrollHero() {
     <section className="hero" ref={wrap}>
       <div className="hero-stick">
         {!noVideo ? (
-          <video ref={vid} src="/hero.mp4" muted playsInline preload="auto" onLoadedMetadata={unlock} onError={() => setNoVideo(true)} />
+          <video ref={vid} src={src} muted playsInline preload="auto" onLoadedMetadata={unlock} onError={() => setNoVideo(true)} />
         ) : (
           <div className="scene" aria-hidden="true">
             <div className="plate"><div className="plate-in" /></div>
