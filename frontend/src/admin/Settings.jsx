@@ -1,9 +1,28 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
-import { InstallButton } from '../lib/install.jsx';
+import { InstallButton, useInstall } from '../lib/install.jsx';
 import { syncPush, turnOffPush, pushSupported } from '../lib/push.js';
 import { chime, unlockAudio } from '../lib/sound.js';
+
+function AdminInstall({ onLogout }) {
+  const { installed, canPrompt } = useInstall();
+  return (
+    <div className="card" style={{ maxWidth: 480, marginBottom: 24 }}>
+      <h3>Install the admin app</h3>
+      <p className="muted">Put this panel on your phone or computer like a normal app, separate from the website. Works on Android, iPhone, Windows and Mac.</p>
+      {installed
+        ? <p className="ok"><strong>✓ Khan G Admin is installed and you are using it.</strong></p>
+        : (
+          <>
+            <InstallButton always className="btn" label="Install admin app" name="Khan G Admin" />
+            <p className="muted" style={{ marginTop: 10, fontSize: '.85rem' }}>{canPrompt ? 'Tap the button and confirm.' : 'If nothing pops up, the button shows the steps for your device.'}</p>
+          </>
+        )}
+      <button className="btn ghost sm" style={{ marginTop: 14 }} onClick={onLogout}>Log out</button>
+    </div>
+  );
+}
 
 function Alerts() {
   const [st, setSt] = useState('checking');
@@ -58,12 +77,7 @@ export default function Settings() {
     <>
       <h1>Account</h1>
       <Alerts />
-      <div className="card" style={{ maxWidth: 480, marginBottom: 24 }}>
-        <h3>Install the admin app</h3>
-        <p className="muted">Put this panel on your phone or computer like a normal app, separate from the website.</p>
-        <InstallButton className="btn sm" label="Install admin app" name="Khan G Admin" />
-        <button className="btn ghost sm" style={{ marginLeft: 8 }} onClick={() => { localStorage.removeItem('kg_token'); nav('/admin/login'); }}>Log out</button>
-      </div>
+      <AdminInstall onLogout={() => { localStorage.removeItem('kg_token'); nav('/admin/login'); }} />
       <h2>Admin email and password</h2>
       <p className="muted">Change the email and password you use to sign in to this panel.</p>
       <form className="form card" style={{ maxWidth: 480 }} onSubmit={save}>

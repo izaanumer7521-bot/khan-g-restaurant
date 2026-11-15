@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
+import { InstallButton } from '../lib/install.jsx';
 
 export default function Login() {
   const nav = useNavigate();
@@ -27,6 +28,7 @@ export default function Login() {
         <label>Password<input type="password" required value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></label>
         {err && <p className="err">{err}</p>}
         <button className="btn full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+        <InstallButton always className="btn ghost full" label="Install admin app" name="Khan G Admin" />
       </form>
     </div>
   );

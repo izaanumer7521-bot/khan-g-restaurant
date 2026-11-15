@@ -10,6 +10,9 @@ export default function AdminLayout() {
   const nav = useNavigate();
   const [ok, setOk] = useState(false);
   useEffect(() => {
+    if (window.__kgApp === 'site') window.location.reload(); // reload once so the browser sees the admin app manifest
+  }, []);
+  useEffect(() => {
     api('/auth/me').then(() => setOk(true)).catch(() => { localStorage.removeItem('kg_token'); nav('/admin/login'); });
   }, [nav]);
   const logout = () => { localStorage.removeItem('kg_token'); nav('/admin/login'); };
@@ -20,7 +23,7 @@ export default function AdminLayout() {
       <aside className="side">
         <img className="logo-img big" src="/logo.png" alt="Khan G" />
         <nav>{links.map(([to, l]) => <NavLink key={to} to={to} end={to === '/admin'}>{l}</NavLink>)}</nav>
-        <InstallButton className="btn ghost sm install" label="Install admin app" name="Khan G Admin" />
+        <InstallButton always className="btn ghost sm install" label="Install admin app" name="Khan G Admin" />
         <button className="btn ghost sm logout" onClick={logout}>Log out</button>
         <a className="muted sitelink" href="/" target="_blank" rel="noreferrer">View website</a>
       </aside>

@@ -14,6 +14,7 @@
     <script>
       (function () {
         var admin = location.pathname.indexOf('/admin') === 0;
+        window.__kgApp = admin ? 'admin' : 'site';
         var l = document.createElement('link');
         l.rel = 'manifest';
         l.href = admin ? '/admin.webmanifest' : '/manifest.webmanifest';
