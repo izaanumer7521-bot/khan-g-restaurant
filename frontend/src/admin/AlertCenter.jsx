@@ -97,7 +97,9 @@ export default function AlertCenter() {
         <div className="overlay alert-overlay" role="alertdialog" aria-label="New order">
           <div className="modal alert-modal">
             <div className="alert-bell" aria-hidden="true">🔔</div>
-            <h2>{popup.orders.length > 1 ? `${popup.orders.length} new orders!` : 'New order!'}</h2>
+            <h2>{popup.orders.some((o) => Date.now() - new Date(o.createdAt).getTime() > 120000)
+              ? `${popup.orders.length} order${popup.orders.length > 1 ? 's' : ''} came in while you were away`
+              : popup.orders.length > 1 ? `${popup.orders.length} new orders!` : 'New order!'}</h2>
             <div className="alert-list">
               {popup.orders.slice(0, 4).map((o) => (
                 <div key={o._id} className="alert-row">

@@ -67,20 +67,13 @@ Open the admin app, go to Account, and read the **Order alerts** checklist. Ever
 - *Registered on server NO* or *last alert failed*: press **Fix this device**, then **Send test alert**.
 - Android: set Chrome (and Khan G Admin) battery to Unrestricted.
 
-### Extra backup alert: Telegram (recommended)
-Telegram rings on any phone even when the admin app is closed or the phone was off (the message waits until it is back online).
-1. In Telegram, open **@BotFather**, send `/newbot`, follow the steps, and copy the **token**.
-2. Open your new bot and send it any message (for example "hi").
-3. In a browser open `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` and copy the number after `"chat":{"id":`.
-4. In Vercel add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`, then redeploy.
-Every new order then sends a full message (customer, phone, address, items, total). To alert more people, add the bot to a Telegram group and use the group's chat id.
 
 
 ## v9 additions
 
 **Customer profile** (`/profile`): live order tracking (updates every 15 s), past order history, and editable name/address. Customers sign in with name + phone as before; each device now gets its own session.
 
-**Payment at checkout**: Cash on delivery (cash at pickup for pickup orders) or **Advance**: the customer pays the rider online (Easypaisa, JazzCash or bank transfer) when the order arrives. Edit the types, descriptions and optional rider account numbers in `frontend/src/config.js` (`PAY_TYPES`). If you add or remove a type, update `PAY_TYPES` in `backend/routes/orders.js` too. Orders show the payment method in the admin Orders page and in the Telegram alert.
+**Payment at checkout**: Cash on delivery (cash at pickup for pickup orders) or **Advance**: the customer pays the rider online (Easypaisa, JazzCash or bank transfer) when the order arrives. Edit the types, descriptions and optional rider account numbers in `frontend/src/config.js` (`PAY_TYPES`). If you add or remove a type, update `PAY_TYPES` in `backend/routes/orders.js` too. Orders show the payment method in the admin Orders page and in the push alert.
 
 **Admin redesign**: dashboard layout with KPI cards, charts and rankings; phones get a hamburger menu and 2-up cards. Same black and red theme, same pages and functions.
 
@@ -100,3 +93,8 @@ After deploying v9, the admin signs in once more and customers sign in once more
 
 ### Using your own push keys on Vercel (recommended)
 Vercel > your project > **Settings > Environment Variables** > add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` (for example `mailto:you@yourmail.com`) for **Production**, then **Redeploy** (variables only apply to new deployments). Then open Account > Notifications on every phone; devices registered with a different key re-register themselves automatically.
+
+
+## v13: permanent alert registration (Telegram removed)
+- A device registered for order alerts **stays registered until you unregister it** in Account > Notifications. Logging out or removing a login in Admin > Devices does not stop its alerts, and the server never deletes a registration by itself.
+- If a phone's own data was cleared, the registration is marked as needing attention and fixes itself the next time the admin app is opened on that phone.

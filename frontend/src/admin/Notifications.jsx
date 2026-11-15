@@ -33,7 +33,7 @@ export default function Notifications() {
   const repair = () => run(async () => { unlockAudio(); setSt(await repairPush()); setNote({ ok: true, text: 'This device was registered again. Press “Send test alert” to confirm.' }); });
   const turnOff = () => run(async () => { await turnOffPush(); setSt('off'); });
   const removeDevice = (d) => {
-    if (!window.confirm(`Stop order alerts on ${d.device}?`)) return;
+    if (!window.confirm(`Unregister ${d.device}?\n\nIt will stop receiving order alerts until you turn alerts on there again.`)) return;
     run(async () => { await api('/push/devices/' + d.id, { method: 'DELETE' }); if (d.endpoint === mine) { await turnOffPush().catch(() => {}); setSt('off'); } });
   };
   const test = (id) => run(async () => {
@@ -44,7 +44,6 @@ export default function Notifications() {
     if (r.reason) text = r.reason;
     else if (!r.devices) text = 'No device is registered for alerts yet. Turn on alerts on this device first.';
     else text = `Test sent to ${r.sent} of ${r.devices} device${r.devices === 1 ? '' : 's'}.` + (bad.length ? ' Problem: ' + bad.map((x) => `${x.device}: ${x.error}`).join(' · ') : ' Check your notifications now.');
-    if (r.telegram) text += r.telegram.ok ? ' Telegram message sent.' : ' Telegram: ' + r.telegram.reason;
     setNote({ ok: !bad.length && !r.reason && !!r.devices, text });
   });
 
@@ -73,7 +72,7 @@ export default function Notifications() {
     tone = 'bad'; ic = '⚠️'; title = 'The last alert did not reach this device'; text = me.lastError;
     action = <button className="btn" disabled={busy} onClick={repair}>Repair this device</button>;
   } else {
-    tone = 'good'; ic = '🔔'; title = 'Order alerts are active'; text = `This device is notified of every new order, even when the app is closed. ${devices.length} device${devices.length === 1 ? '' : 's'} receive alerts.`;
+    tone = 'good'; ic = '🔔'; title = 'Order alerts are active'; text = `This device is registered and is notified of every new order, even when the app is closed. It stays registered until you unregister it here, even if you log out.`;
     action = <button className="btn" disabled={busy} onClick={() => test(me.id)}>Send test alert</button>;
   }
 
@@ -88,7 +87,7 @@ export default function Notifications() {
             <div className="btns-row" style={{ marginTop: 12 }}>
               {action}
               {st === 'on' && me && !me.lastError && <button className="btn ghost sm" disabled={busy} onClick={repair}>Repair</button>}
-              {st === 'on' && <button className="btn ghost sm" disabled={busy} onClick={turnOff}>Turn off on this device</button>}
+              {st === 'on' && <button className="btn ghost sm" disabled={busy} onClick={turnOff}>Unregister this device</button>}
             </div>
           )}
         </div>
@@ -98,12 +97,12 @@ export default function Notifications() {
       <div className="checks">
         <div className={'chk ' + (info ? (info.serverReady ? 'good' : 'bad') : 'off')}><span>Alert server{info && info.serverReady ? (info.keySource === 'env' ? ' · your Vercel keys' : ' · automatic keys') : ''}</span><b>{!info ? '…' : info.serverReady ? 'Ready' : 'Problem'}</b></div>
         <div className={'chk ' + (st === 'on' ? 'good' : 'off')}><span>This device</span><b>{st === 'on' ? 'Allowed' : st === 'denied' ? 'Blocked' : 'Off'}</b></div>
-        <div className={'chk ' + (info && info.telegram ? 'good' : 'off')}><span>Telegram backup</span><b>{info && info.telegram ? 'On' : 'Not set (optional)'}</b></div>
+        <div className={'chk ' + (devices.length ? 'good' : 'off')}><span>Registered devices</span><b>{devices.length}</b></div>
       </div>
 
       <div className="gcard" style={{ marginTop: 14 }}>
         <div className="gcard-h">
-          <div><h3>Devices that get order alerts</h3><div className="sub">Add as many phones and computers as you like. Open this page on each one and turn alerts on.</div></div>
+          <div><h3>Registered devices</h3><div className="sub">Every device here gets every new order and stays registered until you remove it. Add as many phones and computers as you like: open this page on each one and turn alerts on.</div></div>
           {devices.length > 0 && <button className="btn ghost sm" disabled={busy} onClick={() => test(null)}>Test all devices</button>}
         </div>
         {!devices.length && <p className="muted">No device yet.</p>}
@@ -117,11 +116,11 @@ export default function Notifications() {
                 <div className={d.lastError ? 'err' : 'muted'} style={{ fontSize: '.85rem' }}>
                   {d.lastError ? d.lastError : d.lastOkAt ? `Last alert delivered ${ago(d.lastOkAt)}` : 'Not tested yet. Press Test.'}
                 </div>
-                <div className="muted" style={{ fontSize: '.78rem' }}>Added {new Date(d.createdAt).toLocaleDateString()}</div>
+                <div className="muted" style={{ fontSize: '.78rem' }}>Added {new Date(d.createdAt).toLocaleDateString()} · admin app last opened here {ago(d.openedAt)}</div>
               </div>
               <div className="btns-row">
                 <button className="btn ghost sm" disabled={busy} onClick={() => test(d.id)}>Test</button>
-                <button className="link danger" disabled={busy} onClick={() => removeDevice(d)}>Remove</button>
+                <button className="link danger" disabled={busy} onClick={() => removeDevice(d)}>Unregister</button>
               </div>
             </div>
           );
@@ -131,10 +130,13 @@ export default function Notifications() {
       <details className="gcard tips">
         <summary>Not getting alerts when the app is closed?</summary>
         <ol className="ios-steps">
-          <li>The top card above must say <b>Order alerts are active</b>. If it does not, press its button.</li>
+          <li>The top card above must say <b>Order alerts are active</b>. If it does not, press its button. Once registered, a device stays registered until you unregister it here.</li>
+          <li><b>Install the admin app</b> (Account → App). An installed app is not cleaned up or reset by the browser like a normal tab.</li>
           <li><b>Android:</b> Settings → Apps → Chrome (and Khan G Admin) → Battery → <b>Unrestricted</b>. Keep notifications allowed.</li>
           <li><b>iPhone:</b> Share → Add to Home Screen, open the admin app from the Home Screen, then turn alerts on (iOS 16.4 or newer).</li>
-          <li>Swipe the app away normally. Do not “Force stop” it.</li>
+          <li><b>Do not</b> use “Force stop”, “Clear data / storage” or phone cleaner / booster apps on Chrome or Khan G Admin. They delete the alert registration or stop the browser from receiving messages. After doing that, open the admin app and press <b>Turn on alerts</b> again.</li>
+          <li>Xiaomi, Oppo, Vivo, Infinix, Tecno, Realme: also switch <b>Autostart</b> on and set battery to <b>No restrictions</b> for Chrome, and lock the app in the recent-apps screen.</li>
+          <li>If a phone shows <b>admin app last opened</b> a long time ago it is still registered. Alerts only fail if the phone's own settings block them.</li>
           <li>A phone that was switched off gets the alert as soon as it is back online (held for 24 hours).</li>
           {pushSupported() ? null : <li>This browser does not support background alerts.</li>}
         </ol>

@@ -64,7 +64,7 @@ const PushSub = model('PushSub', new Schema({
   endpoint: { type: String, required: true, unique: true },
   keys: { p256dh: String, auth: String },
   user: { type: Schema.Types.ObjectId, ref: 'User' },
-  session: { type: Schema.Types.ObjectId, ref: 'Session' }, // the admin login this phone belongs to; removing that device in Admin > Devices also stops its alerts
+  session: { type: Schema.Types.ObjectId, ref: 'Session' }, // login that last registered this device (informational; logging out does not remove the registration)
   device: { type: String, default: '' }, // short label like "Chrome on Android"
   lastOkAt: Date,
   lastError: { type: String, default: '' },

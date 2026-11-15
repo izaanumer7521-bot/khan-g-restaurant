@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { Session, PushSub } = require('../models');
+const { Session } = require('../models');
 const { deviceName, clientIp } = require('./device');
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -27,9 +27,9 @@ async function readSession(token, kind) {
   return { session: s, id: p.id };
 }
 
-// Ends a login and stops order alerts on that same device.
+// Ends a login. Order alerts are NOT touched: they stay registered until the owner unregisters the device in Account > Notifications.
 async function dropSession(id) {
-  await Promise.all([Session.findByIdAndDelete(id), PushSub.deleteMany({ session: id })]);
+  await Session.findByIdAndDelete(id);
 }
 
 module.exports = { startSession, readSession, dropSession };

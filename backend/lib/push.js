@@ -52,9 +52,9 @@ async function notifyAdmins(payload, { wait = 6000, only = null } = {}) {
     } catch (e) {
       const gone = e.statusCode === 404 || e.statusCode === 410;
       const keyClash = e.statusCode === 401 || e.statusCode === 403;
-      s.lastError = gone ? 'Device unsubscribed' : keyClash ? 'Registered with an old key. Open the admin app on this device once and it fixes itself.' : `${e.statusCode || 'network'}: ${String(e.body || e.message || '').slice(0, 120)}`;
+      s.lastError = gone ? 'Device unsubscribed (phone data was cleared or the browser dropped it). Open the admin app on it once to register again.' : keyClash ? 'Registered with an old key. Open the admin app on this device once and it fixes itself.' : `${e.statusCode || 'network'}: ${String(e.body || e.message || '').slice(0, 120)}`;
       results.push({ id: String(s._id), device: s.device, ok: false, error: s.lastError });
-      if (gone) { await s.deleteOne().catch(() => {}); return; } // the phone removed the subscription
+      // The registration is kept (never deleted automatically). It heals itself when the phone opens the admin app, or you remove it yourself.
     }
     try { await s.save(); } catch { /* recording the result is optional */ }
   }));

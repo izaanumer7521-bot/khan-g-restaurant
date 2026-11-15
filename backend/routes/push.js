@@ -3,7 +3,6 @@ const { PushSub } = require('../models');
 const auth = require('../middleware/auth');
 const wrap = require('../middleware/wrap');
 const { notifyAdmins, getPushInfo } = require('../lib/push');
-const { notifyTelegram, telegramReady } = require('../lib/telegram');
 const { deviceName } = require('../lib/device');
 
 r.get('/key', wrap(async (req, res) => { const i = await getPushInfo(); res.json({ key: i.ready ? i.publicKey : '' }); }));
@@ -12,7 +11,10 @@ r.get('/key', wrap(async (req, res) => { const i = await getPushInfo(); res.json
 r.post('/subscribe', auth, wrap(async (req, res) => {
   const { endpoint, keys } = req.body || {};
   if (!endpoint || !keys || !keys.p256dh || !keys.auth) return res.status(400).json({ message: 'Invalid subscription' });
-  await PushSub.findOneAndUpdate({ endpoint }, { endpoint, keys, user: req.user._id, session: req.sessionId, device: deviceName(req.headers['user-agent']) }, { upsert: true, new: true });
+  const device = deviceName(req.headers['user-agent']);
+  await PushSub.findOneAndUpdate({ endpoint }, { endpoint, keys, user: req.user._id, session: req.sessionId, device }, { upsert: true, new: true });
+  // This device registered again, so a dead registration of the same kind of device (phone wiped, old key) is replaced, not piled up.
+  await PushSub.deleteMany({ endpoint: { $ne: endpoint }, device, lastError: { $regex: /^(Device unsubscribed|Registered with an old key)/ } });
   res.json({ ok: true });
 }));
 
@@ -33,7 +35,7 @@ r.post('/unsubscribe', auth, wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
-// Remove one device from the alert list
+// Alerts stay registered until the owner removes the device here (or turns alerts off on the device itself)
 r.delete('/devices/:id', auth, wrap(async (req, res) => { await PushSub.findByIdAndDelete(req.params.id); res.json({ ok: true }); }));
 
 // What is set up and which devices receive alerts (Account > Notifications)
@@ -41,19 +43,14 @@ r.get('/status', auth, wrap(async (req, res) => {
   const [info, subs] = await Promise.all([getPushInfo(), PushSub.find().sort({ createdAt: -1 })]);
   res.json({
     serverReady: info.ready, keySource: info.source, serverProblem: info.ready ? '' : info.problem, keyNote: info.ready ? info.problem : '',
-    telegram: telegramReady,
-    devices: subs.map((s) => ({ id: s._id, endpoint: s.endpoint, device: s.device || 'Unknown device', createdAt: s.createdAt, lastOkAt: s.lastOkAt, lastError: s.lastError })),
+    devices: subs.map((s) => ({ id: s._id, endpoint: s.endpoint, device: s.device || 'Unknown device', createdAt: s.createdAt, openedAt: s.updatedAt, lastOkAt: s.lastOkAt, lastError: s.lastError })),
   });
 }));
 
 // Send a test alert to one device ({ id }) or to every device (no id)
 r.post('/test', auth, wrap(async (req, res) => {
   const id = req.body && req.body.id;
-  const [push, tg] = await Promise.all([
-    notifyAdmins({ title: 'Test alert from Khan G', body: 'Order alerts are working on this device.', tag: 'test-' + Date.now(), url: '/admin/orders', test: true }, { only: id ? [id] : null }),
-    id ? Promise.resolve(null) : notifyTelegram('✅ Test alert from Khan G. Telegram order alerts are working.'),
-  ]);
-  res.json({ ...push, telegram: id || !telegramReady ? null : tg });
+  res.json(await notifyAdmins({ title: 'Test alert from Khan G', body: 'Order alerts are working on this device.', tag: 'test-' + Date.now(), url: '/admin/orders', test: true }, { only: id ? [id] : null }));
 }));
 
 module.exports = r;
