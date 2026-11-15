@@ -2,7 +2,8 @@ const r = require('express').Router();
 const { PushSub } = require('../models');
 const auth = require('../middleware/auth');
 const wrap = require('../middleware/wrap');
-const { notifyAdmins, pushReady } = require('../lib/push');
+const { notifyAdmins, pushReady, vapidError } = require('../lib/push');
+const { notifyTelegram, telegramReady } = require('../lib/telegram');
 
 r.get('/key', (req, res) => res.json({ key: pushReady ? process.env.VAPID_PUBLIC_KEY : '' }));
 
@@ -18,10 +19,22 @@ r.post('/unsubscribe', auth, wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// What is set up and which devices are registered (shown on the admin Account page)
+r.get('/status', auth, wrap(async (req, res) => {
+  const subs = await PushSub.find().sort({ createdAt: -1 });
+  res.json({
+    serverReady: pushReady, serverProblem: pushReady ? '' : (vapidError || 'VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are not set in Vercel'),
+    telegram: telegramReady,
+    devices: subs.map((s) => ({ id: s._id, endpoint: s.endpoint, device: s.device, createdAt: s.createdAt, lastOkAt: s.lastOkAt, lastError: s.lastError })),
+  });
+}));
+
 r.post('/test', auth, wrap(async (req, res) => {
-  if (!pushReady) return res.status(400).json({ message: 'Push alerts are not set up on the server yet (VAPID keys missing).' });
-  const out = await notifyAdmins({ title: 'Test alert from Khan G', body: 'Order alerts are working on this device.', tag: 'test', url: '/admin/orders', test: true });
-  res.json(out);
+  const [push, tg] = await Promise.all([
+    notifyAdmins({ title: 'Test alert from Khan G', body: 'Order alerts are working on this device.', tag: 'test-' + Date.now(), url: '/admin/orders', test: true }),
+    notifyTelegram('✅ Test alert from Khan G. Telegram order alerts are working.'),
+  ]);
+  res.json({ ...push, telegram: telegramReady ? tg : null });
 }));
 
 module.exports = r;

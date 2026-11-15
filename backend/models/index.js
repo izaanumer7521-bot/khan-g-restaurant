@@ -49,6 +49,8 @@ const PushSub = model('PushSub', new Schema({
   keys: { p256dh: String, auth: String },
   user: { type: Schema.Types.ObjectId, ref: 'User' },
   device: { type: String, default: '' },
+  lastOkAt: Date,
+  lastError: { type: String, default: '' },
 }, { timestamps: true }));
 
 const Message = model('Message', new Schema({

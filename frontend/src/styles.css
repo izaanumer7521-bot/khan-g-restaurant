@@ -405,3 +405,11 @@ input[type=date],input[type=time]{color-scheme:dark}
 .modal.form>*{flex-shrink:0}
 .modal .drawer-h h3{font-size:1.5rem}
 @media (max-width:860px){.admin{grid-template-columns:minmax(0,1fr)}.admin-main{overflow-x:hidden}}
+
+/* alert diagnostics */
+.checks-list{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-direction:column;gap:8px;font-size:.92rem}
+.checks-list li{padding-left:24px;position:relative}
+.checks-list li::before{content:"•";position:absolute;left:6px;color:var(--mute)}
+.checks-list li.good::before{content:"✓";color:#4cd38a;left:4px;font-weight:700}
+.checks-list li.bad::before{content:"✕";color:#ff6b6b;left:4px;font-weight:700}
+.checks-list code{background:var(--soft);padding:1px 6px;border-radius:6px;font-size:.82rem}

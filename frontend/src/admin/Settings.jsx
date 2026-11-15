@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { InstallButton, useInstall } from '../lib/install.jsx';
-import { syncPush, turnOffPush, pushSupported } from '../lib/push.js';
+import { syncPush, turnOffPush, pushSupported, repairPush, currentEndpoint } from '../lib/push.js';
 import { chime, unlockAudio } from '../lib/sound.js';
 
 function AdminInstall({ onLogout }) {
@@ -26,27 +26,68 @@ function AdminInstall({ onLogout }) {
 
 function Alerts() {
   const [st, setSt] = useState('checking');
+  const [info, setInfo] = useState(null);
+  const [mine, setMine] = useState('');
   const [note, setNote] = useState('');
-  useEffect(() => { syncPush(false).then(setSt).catch(() => setSt('off')); }, []);
-  const on = async () => { unlockAudio(); chime(); try { setSt(await syncPush(true)); } catch (e) { setNote(e.message); } };
-  const off = async () => { await turnOffPush(); setSt('off'); };
-  const test = async () => {
-    unlockAudio(); chime(); setNote('');
-    try { const r = await api('/push/test', { method: 'POST' }); setNote(r.devices ? `Test alert sent to ${r.sent} of ${r.devices} device(s).` : 'No device has alerts turned on yet.'); }
-    catch (e) { setNote(e.message); }
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    try { setInfo(await api('/push/status')); } catch { /* ignore */ }
+    try { setMine(await currentEndpoint()); } catch { /* ignore */ }
   };
-  const label = { on: 'On for this device', off: 'Off', denied: 'Blocked in your browser settings', unsupported: 'Not supported here (on iPhone, install the app first)', 'server-off': 'Server is missing its VAPID keys', checking: '…' }[st];
+  useEffect(() => { syncPush(false).then(setSt).catch(() => setSt('off')).finally(load); }, []);
+
+  const run = async (fn) => { setBusy(true); setNote(''); try { await fn(); } catch (e) { setNote(e.message); } setBusy(false); await load(); };
+  const on = () => run(async () => { unlockAudio(); chime(); setSt(await syncPush(true)); });
+  const fix = () => run(async () => { unlockAudio(); setSt(await repairPush()); setNote('This device was registered again. Now press Send test alert.'); });
+  const off = () => run(async () => { await turnOffPush(); setSt('off'); });
+  const test = () => run(async () => {
+    unlockAudio(); chime();
+    const r = await api('/push/test', { method: 'POST' });
+    const bad = (r.results || []).filter((x) => !x.ok);
+    const parts = [];
+    if (r.reason) parts.push('Push: ' + r.reason);
+    else if (!r.devices) parts.push('No phone or computer is registered for alerts yet. Press Turn on alerts on each device.');
+    else parts.push(`Push sent to ${r.sent} of ${r.devices} device(s).` + (bad.length ? ' Problem: ' + bad.map((x) => x.error).join('; ') : ' Look at your notifications now.'));
+    if (r.telegram) parts.push(r.telegram.ok ? 'Telegram message sent.' : 'Telegram: ' + r.telegram.reason);
+    setNote(parts.join(' '));
+  });
+
+  const me = info && mine ? info.devices.find((d) => d.endpoint === mine) : null;
+  const label = { on: 'On for this device', off: 'Off', denied: 'Blocked in your browser settings', unsupported: 'Not supported here (on iPhone, install the app first)', 'server-off': 'Server is missing its push keys', checking: '…' }[st];
   return (
     <div className="card" style={{ maxWidth: 480, marginBottom: 24 }}>
       <h3>Order alerts</h3>
-      <p className="muted">Get a notification with sound on this phone or laptop every time a customer places an order.</p>
-      <p>Status: <strong className={st === 'on' ? 'ok' : ''}>{label}</strong></p>
+      <p className="muted">A notification with sound on every order, even when this app is closed.</p>
+      <ul className="checks-list">
+        <li className={info ? (info.serverReady ? 'good' : 'bad') : ''}>Server push keys: <strong>{!info ? '…' : info.serverReady ? 'OK' : 'MISSING'}</strong>
+          {info && !info.serverReady && <div className="muted">Add <code>VAPID_PUBLIC_KEY</code> and <code>VAPID_PRIVATE_KEY</code> in Vercel → Settings → Environment Variables, then redeploy. Without them alerts only work while this page is open.</div>}
+        </li>
+        <li className={st === 'on' ? 'good' : 'bad'}>This device: <strong>{label}</strong></li>
+        <li className={me ? (me.lastError ? 'bad' : 'good') : (info ? 'bad' : '')}>Registered on server: <strong>{!info ? '…' : me ? (me.lastError ? 'yes, but last alert failed' : 'yes') : 'NO'}</strong>
+          {me && me.lastError && <div className="muted">{me.lastError}. Press “Fix this device”.</div>}
+          {info && !me && st === 'on' && <div className="muted">Press “Fix this device”.</div>}
+        </li>
+        <li className={info && info.telegram ? 'good' : ''}>Telegram backup: <strong>{!info ? '…' : info.telegram ? 'On' : 'Off (optional)'}</strong></li>
+        {info && <li>Devices registered: <strong>{info.devices.length}</strong></li>}
+      </ul>
       <div className="btns" style={{ justifyContent: 'flex-start' }}>
-        {pushSupported() && st !== 'on' && <button className="btn sm" onClick={on}>Turn on alerts</button>}
-        {st === 'on' && <button className="btn sm" onClick={test}>Send test alert</button>}
-        {st === 'on' && <button className="btn ghost sm" onClick={off}>Turn off</button>}
+        {pushSupported() && st !== 'on' && <button className="btn sm" disabled={busy} onClick={on}>Turn on alerts</button>}
+        {pushSupported() && st === 'on' && <button className="btn ghost sm" disabled={busy} onClick={fix}>Fix this device</button>}
+        <button className="btn sm" disabled={busy} onClick={test}>Send test alert</button>
+        {st === 'on' && <button className="btn ghost sm" disabled={busy} onClick={off}>Turn off</button>}
       </div>
       {note && <p className="muted" style={{ marginTop: 10 }}>{note}</p>}
+      <details style={{ marginTop: 14 }}>
+        <summary className="muted" style={{ cursor: 'pointer' }}>Not getting alerts when the app is closed?</summary>
+        <ol className="ios-steps" style={{ fontSize: '.88rem' }}>
+          <li>Every line above must say OK / On / yes. Fix the first red one.</li>
+          <li><b>Android:</b> Settings → Apps → Chrome (and Khan G Admin) → Battery → <b>Unrestricted</b>, and keep notifications allowed.</li>
+          <li><b>iPhone:</b> add the admin app to the Home Screen and open alerts from there (iOS 16.4+).</li>
+          <li>Do not “force close” the browser. Just close or swipe away normally.</li>
+          <li>A phone that is switched off gets the alert as soon as it is back online (held for 24 hours).</li>
+        </ol>
+      </details>
     </div>
   );
 }

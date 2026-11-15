@@ -59,3 +59,18 @@ The admin panel at `/admin` is a **separate installable app** called "Khan G Adm
 
 Every new order sends a notification (with the phone's notification sound) to every device that turned alerts on, even when the app is closed.
 When the admin app is open it also rings a louder alarm and shows a pop-up until you tap it.
+
+
+### Alerts not arriving when the app is closed?
+Open the admin app, go to Account, and read the **Order alerts** checklist. Every line must be green. The first red line tells you the fix:
+- *Server push keys MISSING*: add `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` in Vercel, then redeploy.
+- *Registered on server NO* or *last alert failed*: press **Fix this device**, then **Send test alert**.
+- Android: set Chrome (and Khan G Admin) battery to Unrestricted.
+
+### Extra backup alert: Telegram (recommended)
+Telegram rings on any phone even when the admin app is closed or the phone was off (the message waits until it is back online).
+1. In Telegram, open **@BotFather**, send `/newbot`, follow the steps, and copy the **token**.
+2. Open your new bot and send it any message (for example "hi").
+3. In a browser open `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` and copy the number after `"chat":{"id":`.
+4. In Vercel add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`, then redeploy.
+Every new order then sends a full message (customer, phone, address, items, total). To alert more people, add the bot to a Telegram group and use the group's chat id.

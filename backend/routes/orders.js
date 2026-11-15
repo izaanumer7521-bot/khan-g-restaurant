@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const wrap = require('../middleware/wrap');
 const normalizePhone = require('../lib/phone');
 const { notifyAdmins } = require('../lib/push');
+const { notifyTelegram, orderText } = require('../lib/telegram');
 
 const DELIVERY_CHARGE = process.env.DELIVERY_CHARGE ? Number(process.env.DELIVERY_CHARGE) : 100;
 const STATUSES = ['pending', 'preparing', 'on-the-way', 'completed', 'cancelled'];
@@ -60,13 +61,17 @@ r.post('/', wrap(async (req, res) => {
   // Save the customer so the admin sees them in the Customers list
   Customer.findOneAndUpdate({ phone }, { name: customerName, phone, ...(isPickup ? {} : { address }), lastLogin: new Date() }, { upsert: true, setDefaultsOnInsert: true }).catch(() => {});
 
-  // Alert every admin device (works even when the admin app is closed)
+  // Alert every admin device (push) and the owner's Telegram, at the same time
   const count = lines.reduce((s, l) => s + l.qty, 0);
-  await notifyAdmins({
-    title: `New order #${short(order)} · Rs. ${order.total.toLocaleString('en-PK')}`,
-    body: `${customerName} · ${count} item${count > 1 ? 's' : ''} · ${isPickup ? 'Pickup' : 'Delivery'}`,
-    tag: 'order-' + order._id, url: '/admin/orders', orderId: String(order._id),
-  }).catch(() => {});
+  const results = await Promise.allSettled([
+    notifyAdmins({
+      title: `New order #${short(order)} · Rs. ${order.total.toLocaleString('en-PK')}`,
+      body: `${customerName} · ${count} item${count > 1 ? 's' : ''} · ${isPickup ? 'Pickup' : 'Delivery'}`,
+      tag: 'order-' + order._id, url: '/admin/orders', orderId: String(order._id),
+    }),
+    notifyTelegram(orderText(order, short(order))),
+  ]);
+  results.forEach((r, i) => { if (r.status === 'rejected') console.error('alert failed', i, r.reason && r.reason.message); });
 
   res.status(201).json({ _id: order._id, no: short(order), subtotal, deliveryCharge, total: order.total });
 }));
