@@ -9,7 +9,7 @@ let cache = null;
 async function loadKeys() {
   if (cache) return cache;
   const subject = process.env.VAPID_SUBJECT || 'mailto:admin@khang.pk';
-  const pub = (process.env.VAPID_PUBLIC_KEY || '').trim();
+  const pub = (process.env.VAPID_PUBLIC_KEY || process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '').trim(); // either name works
   const priv = (process.env.VAPID_PRIVATE_KEY || '').trim();
   let envProblem = '';
   if (pub && priv) {
@@ -24,6 +24,7 @@ async function loadKeys() {
     try { doc = await Setting.findOneAndUpdate({ key: 'vapid' }, { $setOnInsert: { value: webpush.generateVAPIDKeys() } }, { upsert: true, new: true }).lean(); }
     catch { doc = await Setting.findOne({ key: 'vapid' }).lean(); } // another server instance created it first
   }
+  webpush.setVapidDetails(subject, doc.value.publicKey, doc.value.privateKey);
   cache = { publicKey: doc.value.publicKey, privateKey: doc.value.privateKey, subject, source: 'auto', envProblem };
   return cache;
 }

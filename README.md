@@ -97,3 +97,6 @@ After deploying v9, the admin signs in once more and customers sign in once more
 - **Per-device control.** Account > Notifications lists each device with its last delivery, a Test button and Remove. Logging a device out in Admin > Devices also stops its alerts.
 - Admin logins now stay signed in for 90 days of use (the timer restarts every time the device is used), so the restaurant phone keeps receiving alerts.
 - After deploying, open the admin app once on each phone and press **Turn on alerts** (or **Repair** if the card says so).
+
+### Using your own push keys on Vercel (recommended)
+Vercel > your project > **Settings > Environment Variables** > add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` (for example `mailto:you@yourmail.com`) for **Production**, then **Redeploy** (variables only apply to new deployments). Then open Account > Notifications on every phone; devices registered with a different key re-register themselves automatically.

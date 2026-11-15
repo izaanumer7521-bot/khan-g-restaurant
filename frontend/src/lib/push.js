@@ -32,7 +32,7 @@ export async function syncPush(ask = false) {
   const reg = await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();
   // a registration made with an older server key can never receive messages: replace it
-  if (sub && sub.options && sub.options.applicationServerKey && !sameKey(sub.options.applicationServerKey, toKey(key))) { await sub.unsubscribe(); sub = null; }
+  if (sub && sub.options && sub.options.applicationServerKey && !sameKey(sub.options.applicationServerKey, toKey(key))) { await api('/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint } }).catch(() => {}); await sub.unsubscribe(); sub = null; }
   if (!sub) {
     try { sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(key) }); }
     catch { // an old subscription made with a different key

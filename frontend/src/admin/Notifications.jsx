@@ -96,7 +96,7 @@ export default function Notifications() {
       {note.text && <p className={note.ok ? 'okmsg' : 'err'} style={{ margin: '10px 2px 0' }}>{note.text}</p>}
 
       <div className="checks">
-        <div className={'chk ' + (info ? (info.serverReady ? 'good' : 'bad') : 'off')}><span>Alert server</span><b>{!info ? '…' : info.serverReady ? 'Ready' : 'Problem'}</b></div>
+        <div className={'chk ' + (info ? (info.serverReady ? 'good' : 'bad') : 'off')}><span>Alert server{info && info.serverReady ? (info.keySource === 'env' ? ' · your Vercel keys' : ' · automatic keys') : ''}</span><b>{!info ? '…' : info.serverReady ? 'Ready' : 'Problem'}</b></div>
         <div className={'chk ' + (st === 'on' ? 'good' : 'off')}><span>This device</span><b>{st === 'on' ? 'Allowed' : st === 'denied' ? 'Blocked' : 'Off'}</b></div>
         <div className={'chk ' + (info && info.telegram ? 'good' : 'off')}><span>Telegram backup</span><b>{info && info.telegram ? 'On' : 'Not set (optional)'}</b></div>
       </div>
