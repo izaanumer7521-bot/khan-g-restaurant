@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { readState, turnOn, turnOff, sendTest } from '../lib/alerts.js';
+import { readState, turnOn, turnOff, sendTest, getInfo } from '../lib/alerts.js';
 
 const HINT = {
   'ios-install': 'On iPhone: tap Share → Add to Home Screen, then open Khan G Admin from the Home Screen and switch this on.',
@@ -12,6 +12,9 @@ export default function AlertToggle({ card = false }) {
   const [state, setState] = useState('loading');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState({ ok: true, text: '' });
+  const [info, setInfo] = useState(null);
+  const refresh = () => getInfo().then(setInfo).catch(() => {});
+  useEffect(() => { if (state === 'on') refresh(); }, [state]);
 
   useEffect(() => { readState().then(setState).catch((e) => { setState('off'); setMsg({ ok: false, text: e.message }); }); }, []);
 
@@ -22,11 +25,12 @@ export default function AlertToggle({ card = false }) {
     catch (e) { setMsg({ ok: false, text: e.message || 'Could not change alerts' }); }
     setBusy(false);
   };
-  const test = async () => {
-    setMsg({ ok: true, text: 'Sending…' });
-    try { await sendTest(); setMsg({ ok: true, text: 'Test sent. It should arrive in a few seconds.' }); }
+  const test = async (delay = 0) => {
+    setMsg({ ok: true, text: delay ? `Close the app and lock the phone now. The alert is sent in ${delay} seconds…` : 'Sending…' });
+    try { await sendTest(delay); setMsg({ ok: true, text: 'Test sent. It should arrive in a few seconds.' }); refresh(); }
     catch (e) { setMsg({ ok: false, text: e.message }); }
   };
+  const when = (d) => new Date(d).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
   const on = state === 'on';
   const inner = (
@@ -37,7 +41,13 @@ export default function AlertToggle({ card = false }) {
       </div>
       {HINT[state] && <p className="muted atoggle-hint">{HINT[state]}</p>}
       {msg.text && <p className={msg.ok ? 'okmsg' : 'err'} style={{ marginTop: 8 }}>{msg.text}</p>}
-      {on && <button type="button" className="link" style={{ marginTop: 6 }} onClick={test}>Send test alert</button>}
+      {on && info && <p className="muted atoggle-hint">{info.lastError ? `Last alert FAILED: ${info.lastError}` : info.lastSentAt ? `Last alert sent to this phone: ${when(info.lastSentAt)}` : 'No alert sent to this phone yet.'}</p>}
+      {on && (
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 6 }}>
+          <button type="button" className="link" onClick={() => test(0)}>Send test alert</button>
+          <button type="button" className="link" onClick={() => test(8)}>Test with app closed</button>
+        </div>
+      )}
     </>
   );
   return card ? <div className="gcard" style={{ maxWidth: 560 }}>{inner}</div> : <div className="atoggle-wrap">{inner}</div>;

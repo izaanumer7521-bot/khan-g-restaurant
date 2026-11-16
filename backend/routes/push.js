@@ -27,8 +27,8 @@ r.post('/subscribe', auth, wrap(async (req, res) => {
 // The toggle asks: does the server really have THIS device?
 r.post('/status', auth, wrap(async (req, res) => {
   const endpoint = req.body && req.body.endpoint;
-  const [mine, total] = await Promise.all([endpoint ? Subscription.exists({ endpoint }) : null, Subscription.countDocuments()]);
-  res.json({ subscribed: !!mine, total, serverReady: !!(await getPublicKey()) });
+  const [mine, total] = await Promise.all([endpoint ? Subscription.findOne({ endpoint }).select('lastSentAt lastError failCount').lean() : null, Subscription.countDocuments()]);
+  res.json({ subscribed: !!mine, total, serverReady: !!(await getPublicKey()), lastSentAt: mine && mine.lastSentAt, lastError: (mine && mine.lastError) || '', failCount: (mine && mine.failCount) || 0 });
 }));
 
 // Toggle switched off
@@ -54,6 +54,9 @@ r.post('/test', auth, wrap(async (req, res) => {
   const endpoint = req.body && req.body.endpoint;
   const mine = endpoint ? await Subscription.findOne({ endpoint }).select('_id') : null;
   if (!mine) return res.status(404).json({ message: 'This device is not registered yet. Switch alerts off and on again.' });
+  // optional delay (max 8 s) so the admin can close the app / lock the phone before the alert is sent
+  const delay = Math.min(8, Math.max(0, Number(req.body && req.body.delay) || 0));
+  if (delay) await new Promise((r) => setTimeout(r, delay * 1000));
   const out = await notifyAdmins({ title: 'Test alert', body: 'Order alerts are working on this device.', tag: 'test-' + Date.now(), url: '/admin/orders', test: true }, { only: [mine._id] });
   res.json(out);
 }));

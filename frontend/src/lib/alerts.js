@@ -110,12 +110,22 @@ export function heal() {
   }).catch(() => 'off');
 }
 
-export function sendTest() {
+// What the server knows about this phone: when it last accepted an alert for it, and the last error.
+export function getInfo() {
+  return queue(async () => {
+    const reg = await getReg();
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return null;
+    return api('/push/status', { method: 'POST', body: { endpoint: sub.endpoint } });
+  });
+}
+
+export function sendTest(delay = 0) {
   return queue(async () => {
     const reg = await getReg();
     const sub = await reg.pushManager.getSubscription();
     if (!sub) throw new Error('Alerts are not on for this device yet.');
-    const r = await api('/push/test', { method: 'POST', body: { endpoint: sub.endpoint } });
+    const r = await api('/push/test', { method: 'POST', body: { endpoint: sub.endpoint, delay } });
     if (!r.sent) throw new Error(r.removed ? 'This device was no longer valid. Switch alerts off and on again.' : (r.errors && r.errors[0]) || 'The push service did not accept the test.');
     return r;
   });
