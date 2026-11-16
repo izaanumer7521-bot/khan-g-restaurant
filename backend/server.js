@@ -23,6 +23,10 @@ const connect = () => {
 };
 app.use(wrap(async (req, res, next) => { await connect(); next(); }));
 
+// Public forms: stop one device from flooding the restaurant with fake orders or messages (admin requests are not limited)
+const limitPosts = (max) => rateLimit({ windowMs: 15 * 60 * 1000, max, skip: (req) => req.method !== 'POST', message: { message: 'Too many requests. Please wait a few minutes and try again.' } });
+app.use('/api/orders', limitPosts(30));
+app.use('/api/messages', limitPosts(10));
 app.use('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));
 app.use('/api/customers/signin', rateLimit({ windowMs: 15 * 60 * 1000, max: 60 }));
 app.use('/api/auth', require('./routes/auth'));

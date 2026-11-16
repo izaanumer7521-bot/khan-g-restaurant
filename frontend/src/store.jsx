@@ -11,7 +11,7 @@ export function CartProvider({ children }) {
     try { return (JSON.parse(localStorage.getItem('kg_cart')) || []).map((i) => ({ ...i, key: i.key || keyOf(i._id, i.size) })); } catch { return []; }
   });
   const [open, setOpen] = useState(false);
-  useEffect(() => { try { localStorage.setItem('kg_cart', JSON.stringify(items)); } catch {} }, [items]);
+  useEffect(() => { try { localStorage.setItem('kg_cart', JSON.stringify(items)); } catch { /* storage unavailable */ } }, [items]);
 
   // p = dish, size = { label, price } or undefined for single-price dishes
   const add = (p, size, n = 1) => {

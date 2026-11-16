@@ -60,6 +60,8 @@ One switch: **Order alerts on this device** (bottom of the admin sidebar, and Ac
 
 How it works: `web-push` (free) sends to each saved device (MongoDB collection `adminsubscriptions`, one document per endpoint, upserted). `sw.js` shows the notification (stays until tapped, vibrates, phone sound) even when the app is closed. Devices that report 404/410 are deleted automatically. The switch reads the real state from the browser and server, and the app quietly re-registers the device whenever it is opened, so clearing the cache does not disconnect it.
 
+**v18 admin on phones:** bottom tab bar (Home, Orders, Menu, More), orders shown as tickets with one big button for the next step (Accept order, Send out for delivery, Mark delivered), call/WhatsApp/map buttons, and a red badge on Orders for orders waiting. Public order and message forms are rate limited.
+
 Old v10-v16 collections (`pushsubs`, `pushlogs`) are no longer used; you can drop them in Atlas.
 
 ## v9 additions

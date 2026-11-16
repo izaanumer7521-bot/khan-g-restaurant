@@ -45,7 +45,7 @@ export default function AlertToggle({ card = false }) {
       {on && (
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 6 }}>
           <button type="button" className="link" onClick={() => test(0)}>Send test alert</button>
-          <button type="button" className="link" onClick={() => test(8)}>Test with app closed</button>
+          <button type="button" className="link" onClick={() => test(6)}>Test with app closed</button>
         </div>
       )}
     </>

@@ -59,13 +59,14 @@ export default function Dashboard() {
   const ser = s.series || [];
   const last7 = ser.slice(-7);
   const maxBar = Math.max(...last7.map((d) => d.orders), 1);
+  const today = ser[ser.length - 1] || { orders: 0, revenue: 0 };
   const week = last7.reduce((a, d) => a + d.orders, 0);
   const statusParts = Object.keys(STATUS_COL).map((k) => ({ k, n: s.byStatus?.[k] || 0, c: STATUS_COL[k] })).filter((p) => p.n > 0);
   const cards = [
     { l: 'Completed sales', v: money(s.revenue), sub: 'Last 14 days', d: ser.map((x) => x.revenue), ic: 'money', to: '/admin/orders', c: '#ff3b46' },
     { l: 'Total orders', v: s.orders, sub: `${week} in the last 7 days`, d: ser.map((x) => x.orders), ic: 'bag', to: '/admin/orders', c: '#ffffff' },
     { l: 'Customers', v: s.customers ?? 0, sub: 'New sign-ups, 14 days', d: ser.map((x) => x.customers), ic: 'customers', to: '/admin/customers', c: '#4cd38a' },
-    { l: 'New orders', v: s.pendingOrders, sub: 'Waiting for you', d: ser.map((x) => x.orders - x.done), ic: 'bell', to: '/admin/orders', c: '#ffd166' },
+    { l: 'Orders today', v: today.orders, sub: `${money(today.revenue)} completed today`, d: ser.map((x) => x.orders), ic: 'bell', to: '/admin/orders', c: '#ffd166' },
   ];
 
   return (
@@ -74,6 +75,11 @@ export default function Dashboard() {
         <div><h1>Dashboard</h1><p>Your restaurant at a glance. Updates by itself.</p></div>
         <Link to="/admin/orders" className="btn sm">View orders</Link>
       </div>
+
+      <Link to="/admin/orders" className={'dash-hero' + (s.pendingOrders ? ' hot' : '')}>
+        <span className="dh-n">{s.pendingOrders}</span>
+        <span className="dh-t"><b>{s.pendingOrders ? (s.pendingOrders === 1 ? 'New order is waiting' : 'New orders are waiting') : 'All caught up'}</b><small>{s.pendingOrders ? 'Tap to accept' : 'New orders show up here and ring this phone'}</small></span>
+      </Link>
 
       <div className="kpis">
         {cards.map((c, i) => (

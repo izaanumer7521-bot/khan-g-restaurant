@@ -83,7 +83,7 @@ function notifyNewOrder(order) {
     tag: 'order-' + order._id,
     url: '/admin/orders',
     orderId: String(order._id),
-  });
+  }, { wait: 4000 }); // never hold the customer's order for long
 }
 
 module.exports = { notifyAdmins, notifyNewOrder, getPublicKey };

@@ -2,66 +2,102 @@ import { useEffect, useMemo, useState } from 'react';
 import useList from './useList.js';
 import { api } from '../api.js';
 import { money } from '../config.js';
+import Icon from './icons.jsx';
 
 const STATUS = [['pending', 'Pending'], ['preparing', 'Preparing'], ['on-the-way', 'On the way'], ['completed', 'Completed'], ['cancelled', 'Cancelled']];
+const ACTIVE = ['pending', 'preparing', 'on-the-way'];
+const LABEL = Object.fromEntries(STATUS);
 const no = (o) => String(o._id).slice(-5).toUpperCase();
 const waLink = (p) => 'https://wa.me/' + (p.startsWith('0') ? '92' + p.slice(1) : p);
+const mapLink = (a) => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(a);
+const ago = (d) => {
+  const m = Math.max(0, Math.round((Date.now() - new Date(d).getTime()) / 60000));
+  if (m < 1) return 'just now';
+  if (m < 60) return m + ' min ago';
+  if (m < 1440) return Math.round(m / 60) + ' h ago';
+  return new Date(d).toLocaleDateString([], { day: 'numeric', month: 'short' });
+};
+// The one button that moves an order to its next step
+const next = (o) => ({
+  pending: ['preparing', 'Accept order'],
+  preparing: o.type === 'pickup' ? ['completed', 'Mark picked up'] : ['on-the-way', 'Send out for delivery'],
+  'on-the-way': ['completed', 'Mark delivered'],
+}[o.status]);
+
+function Ticket({ o, onPatch, onRemove, onEdit }) {
+  const [more, setMore] = useState(false);
+  const step = next(o);
+  const items = o.items.reduce((s, i) => s + i.qty, 0);
+  return (
+    <article className={'ticket s-' + o.status}>
+      <header className="tk-head">
+        <div><span className="tk-no">#{no(o)}</span><span className="tk-ago">{ago(o.createdAt)}</span></div>
+        <span className="tk-state">{LABEL[o.status]}</span>
+      </header>
+      <div className="tk-tags">
+        <span className={'tk-tag ' + o.type}>{o.type === 'pickup' ? 'Pickup' : 'Delivery'}</span>
+        <span className={'tk-tag ' + (o.paymentMethod === 'advance' ? 'online' : 'cash')}>{o.paymentMethod === 'advance' ? 'Pays rider online' + (o.paymentType ? ' · ' + o.paymentType : '') : 'Cash'}</span>
+      </div>
+      <div className="tk-who"><strong>{o.customerName}</strong><a href={'tel:' + o.phone}>{o.phone}</a></div>
+      {o.type === 'delivery' && o.address && <a className="tk-addr" href={mapLink(o.address)} target="_blank" rel="noreferrer"><Icon name="pin" />{o.address}</a>}
+      <div className="tk-rule" />
+      <ul className="tk-lines">{o.items.map((i, k) => <li key={k}><span><b>{i.qty}×</b> {i.name}</span><span>{money(i.price * i.qty)}</span></li>)}</ul>
+      {o.note && <p className="tk-note">Note: {o.note}</p>}
+      <div className="tk-total">
+        <span>{items} item{items === 1 ? '' : 's'}{o.deliveryCharge ? ` · delivery ${money(o.deliveryCharge)}` : ''}</span>
+        <strong>{money(o.total)}</strong>
+      </div>
+      <footer className="tk-actions">
+        <a className="ic-btn" href={'tel:' + o.phone} aria-label={'Call ' + o.customerName}><Icon name="phone" /></a>
+        <a className="ic-btn" href={waLink(o.phone)} target="_blank" rel="noreferrer" aria-label={'WhatsApp ' + o.customerName}><Icon name="chat" /></a>
+        {step
+          ? <button className="btn tk-primary" onClick={() => onPatch(o._id, { status: step[0] })}>{step[1]}</button>
+          : <span className="tk-done">{o.status === 'completed' ? 'Completed' : 'Cancelled'}</span>}
+        <button className="ic-btn" onClick={() => setMore((v) => !v)} aria-expanded={more} aria-label="More actions"><Icon name="more" /></button>
+      </footer>
+      {more && (
+        <div className="tk-more">
+          <button className="btn ghost sm" onClick={() => onEdit(o)}>Edit order</button>
+          {ACTIVE.includes(o.status) && <button className="btn ghost sm danger" onClick={() => { if (window.confirm(`Cancel order #${no(o)}?`)) onPatch(o._id, { status: 'cancelled' }); }}>Cancel order</button>}
+          {!ACTIVE.includes(o.status) && <button className="btn ghost sm" onClick={() => onPatch(o._id, { status: 'pending' })}>Reopen</button>}
+          <button className="link danger" onClick={() => onRemove(o._id)}>Delete</button>
+        </div>
+      )}
+    </article>
+  );
+}
 
 export default function Orders() {
   const { data, loading, err, reload, patch, remove } = useList('/orders');
-  const [tab, setTab] = useState('all');
+  const [tab, setTab] = useState('active');
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState(null);
 
   useEffect(() => { const t = setInterval(reload, 20000); return () => clearInterval(t); }, [reload]);
 
-  const counts = useMemo(() => Object.fromEntries(STATUS.map(([s]) => [s, data.filter((o) => o.status === s).length])), [data]);
-  const list = data.filter((o) => (tab === 'all' || o.status === tab)
+  const counts = useMemo(() => ({ active: data.filter((o) => ACTIVE.includes(o.status)).length, ...Object.fromEntries(STATUS.map(([s]) => [s, data.filter((o) => o.status === s).length])) }), [data]);
+  const tabs = [['active', 'Active'], ...STATUS, ['all', 'All']];
+  const list = data.filter((o) => (tab === 'all' || (tab === 'active' ? ACTIVE.includes(o.status) : o.status === tab))
     && (!q || (o.customerName + o.phone + no(o) + (o.address || '')).toLowerCase().includes(q.toLowerCase())));
 
   return (
     <>
       <div className="bar"><h1>Orders</h1><button className="btn ghost sm" onClick={reload}>Refresh</button></div>
-      <input className="search" style={{ maxWidth: 'none' }} placeholder="Search by name, phone, address or order number" value={q} onChange={(e) => setQ(e.target.value)} />
-      <div className="tabs" style={{ position: 'static', background: 'none', paddingBottom: 14 }}>
-        <button className={tab === 'all' ? 'on' : ''} onClick={() => setTab('all')}>All ({data.length})</button>
-        {STATUS.map(([s, l]) => <button key={s} className={tab === s ? 'on' : ''} onClick={() => setTab(s)}>{l} ({counts[s]})</button>)}
+      <input className="search" style={{ maxWidth: 'none' }} placeholder="Search name, phone, address or order number" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="otabs" role="tablist">
+        {tabs.map(([s, l]) => (
+          <button key={s} role="tab" aria-selected={tab === s} className={(tab === s ? 'on' : '') + (s === 'pending' && counts.pending ? ' hot' : '')} onClick={() => setTab(s)}>
+            {l}<em>{s === 'all' ? data.length : counts[s]}</em>
+          </button>
+        ))}
       </div>
       {err && <p className="err">{err}</p>}
       {loading && <p className="muted">Loading…</p>}
-      {!loading && !list.length && <p className="muted">No orders here.</p>}
+      {!loading && !list.length && <p className="muted empty">{tab === 'active' ? 'No orders waiting. New ones appear here by themselves.' : 'No orders here.'}</p>}
 
-      {list.map((o) => (
-        <div className={'item col order' + (o.status === 'pending' ? ' unread' : '')} key={o._id}>
-          <div className="bar">
-            <div>
-              <strong>#{no(o)} · {o.customerName}</strong> <span className={'badge ' + o.type}>{o.type}</span><span className={'badge ' + (o.paymentMethod === 'advance' ? 'pending' : 'pickup')}>{o.paymentMethod === 'advance' ? 'Pays rider online · ' + (o.paymentType || '') : 'Cash'}</span>
-              <div className="muted">{new Date(o.createdAt).toLocaleString()}</div>
-            </div>
-            <select value={o.status} onChange={(e) => patch(o._id, { status: e.target.value })} aria-label="Order status">
-              {STATUS.map(([s, l]) => <option key={s} value={s}>{l}</option>)}
-            </select>
-          </div>
-          <div className="contact-line">
-            <a href={'tel:' + o.phone}>📞 {o.phone}</a>
-            <a href={waLink(o.phone)} target="_blank" rel="noreferrer">WhatsApp</a>
-          </div>
-          {o.type === 'delivery' && <div className="muted">📍 {o.address}</div>}
-          <div className="lines">{o.items.map((i, k) => <div key={k}><span>{i.qty}× {i.name}</span><span>{money(i.price * i.qty)}</span></div>)}</div>
-          {o.note && <div className="muted">Note: {o.note}</div>}
-          <div className="sums">
-            <div><span>Items</span><span>{money(o.subtotal ?? o.items.reduce((s, i) => s + i.price * i.qty, 0))}</span></div>
-            <div><span>Delivery charge</span><span>{money(o.deliveryCharge || 0)}</span></div>
-            <div className="g"><span>Total</span><strong>{money(o.total)}</strong></div>
-          </div>
-          <div className="bar">
-            <button className="btn ghost sm" onClick={() => setEdit(o)}>Edit order</button>
-            <button className="link danger" onClick={() => remove(o._id)}>Delete</button>
-          </div>
-        </div>
-      ))}
+      <div className="tickets">{list.map((o) => <Ticket key={o._id} o={o} onPatch={patch} onRemove={remove} onEdit={setEdit} />)}</div>
 
-      {edit && <EditOrder order={edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload(); }} />}
+      {edit && <EditOrder order={edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload(); window.dispatchEvent(new Event('kg-orders-changed')); }} />}
     </>
   );
 }

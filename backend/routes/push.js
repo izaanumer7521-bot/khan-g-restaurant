@@ -54,8 +54,8 @@ r.post('/test', auth, wrap(async (req, res) => {
   const endpoint = req.body && req.body.endpoint;
   const mine = endpoint ? await Subscription.findOne({ endpoint }).select('_id') : null;
   if (!mine) return res.status(404).json({ message: 'This device is not registered yet. Switch alerts off and on again.' });
-  // optional delay (max 8 s) so the admin can close the app / lock the phone before the alert is sent
-  const delay = Math.min(8, Math.max(0, Number(req.body && req.body.delay) || 0));
+  // optional delay (max 6 s) so the admin can close the app / lock the phone before the alert is sent
+  const delay = Math.min(6, Math.max(0, Number(req.body && req.body.delay) || 0));
   if (delay) await new Promise((r) => setTimeout(r, delay * 1000));
   const out = await notifyAdmins({ title: 'Test alert', body: 'Order alerts are working on this device.', tag: 'test-' + Date.now(), url: '/admin/orders', test: true }, { only: [mine._id] });
   res.json(out);
