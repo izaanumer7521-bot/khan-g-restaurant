@@ -59,27 +59,6 @@ const Session = model('Session', new Schema({
   expiresAt: { type: Date, required: true, index: { expires: 0 } }, // MongoDB removes the row after this time
 }, { timestamps: true }));
 
-// One row per browser/phone that turned on order alerts in the admin panel
-const PushSub = model('PushSub', new Schema({
-  endpoint: { type: String, required: true, unique: true },
-  keys: { p256dh: String, auth: String },
-  user: { type: Schema.Types.ObjectId, ref: 'User' },
-  deviceId: { type: String, default: '', index: true }, // random id kept in the phone's storage: one registration row per physical device
-  lastAckAt: Date, // set by the phone itself the moment it receives an alert: proof it really arrived (not just accepted by Google)
-  session: { type: Schema.Types.ObjectId, ref: 'Session' }, // login that last registered this device (informational; logging out does not remove the registration)
-  device: { type: String, default: '' }, // short label like "Chrome on Android"
-  lastOkAt: Date,
-  lastError: { type: String, default: '' },
-}, { timestamps: true }));
-
-// What happened each time an alert was sent (kept 14 days). Shown in Account > Notifications so delivery is never a mystery.
-const PushLogSchema = new Schema({
-  title: String, kind: { type: String, default: 'order' }, devices: Number, sent: Number, pending: { type: Number, default: 0 },
-  results: [{ device: String, ok: Boolean, error: String, _id: false }],
-}, { timestamps: true });
-PushLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 14 * 24 * 3600 });
-const PushLog = model('PushLog', PushLogSchema);
-
 // Small key/value store. Holds the auto-generated push (VAPID) keys so alerts need no manual setup.
 const Setting = model('Setting', new Schema({ key: { type: String, unique: true, required: true }, value: Schema.Types.Mixed }, { timestamps: true }));
 
@@ -96,4 +75,4 @@ const Image = model('Image', new Schema({
   contentType: { type: String, required: true },
 }, { timestamps: true }));
 
-module.exports = { User, Category, MenuItem, Order, Customer, Session, PushSub, PushLog, Setting, Message, Image };
+module.exports = { User, Category, MenuItem, Order, Customer, Session, Setting, Message, Image };

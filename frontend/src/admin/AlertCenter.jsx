@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { money } from '../config.js';
 import { chime, unlockAudio, audioReady } from '../lib/sound.js';
-import { syncPush, pushSupported } from '../lib/push.js';
-import { isStandalone } from '../lib/install.jsx';
+import { heal } from '../lib/alerts.js';
 
 const SEEN = 'kg_seen_order';
 const getSeen = () => { try { return localStorage.getItem(SEEN); } catch { return null; } };
@@ -15,7 +14,6 @@ const setSeen = (v) => { try { localStorage.setItem(SEEN, v); } catch { /* ignor
 export default function AlertCenter() {
   const nav = useNavigate();
   const [popup, setPopup] = useState(null);      // { orders: [...] }
-  const [push, setPush] = useState('checking');   // on | off | denied | unsupported | server-off
   const [sound, setSound] = useState(false);
   const busy = useRef(false);
 
@@ -54,7 +52,7 @@ export default function AlertCenter() {
   }, []);
 
   // keep this device's alert subscription fresh whenever the admin opens the panel
-  useEffect(() => { syncPush(false).then(setPush).catch(() => setPush('off')); }, []);
+  useEffect(() => { heal(); }, []);
 
   // alarm: bell + vibration + flashing title, repeating until dismissed
   useEffect(() => {
@@ -73,26 +71,8 @@ export default function AlertCenter() {
     if (go) nav('/admin/orders');
   };
 
-  const enable = async () => {
-    setSound(unlockAudio()); chime();
-    try { setPush(await syncPush(true)); } catch (e) { setPush('off'); }
-  };
-
-  const iosNeedsInstall = /iphone|ipad|ipod/i.test(navigator.userAgent) && !isStandalone();
-
   return (
     <>
-      {push === 'off' && pushSupported() && (
-        <div className="alert-banner">
-          <span>🔔 Turn on order alerts to get a notification with sound on this device, even when the app is closed.</span>
-          <button className="btn sm" onClick={enable}>Turn on</button>
-        </div>
-      )}
-      {push === 'unsupported' && iosNeedsInstall && (
-        <div className="alert-banner"><span>On iPhone, add this admin app to your Home Screen first (Share → Add to Home Screen), then open it from there to enable order alerts.</span></div>
-      )}
-      {push === 'denied' && <div className="alert-banner"><span>Notifications are blocked for this site. Allow them in your browser or phone settings to receive order alerts.</span></div>}
-
       {popup && (
         <div className="overlay alert-overlay" role="alertdialog" aria-label="New order">
           <div className="modal alert-modal">

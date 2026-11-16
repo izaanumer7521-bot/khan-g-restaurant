@@ -23,7 +23,7 @@ export default function Devices() {
   const run = async (fn) => { setErr(''); try { await fn(); await load(); } catch (e) { setErr(e.message); } };
   const removeOne = (s) => {
     const self = s.current ? '\n\nThis is the device you are using right now, so you will be logged out too.' : '';
-    if (!window.confirm(`Log out ${s.who} on ${s.device}?\n\nThat device is signed out automatically within a few seconds.${s.kind === 'admin' ? '\n\nOrder alerts on it stay on. To stop them, unregister it in Account > Notifications.' : ''}${self}`)) return;
+    if (!window.confirm(`Log out ${s.who} on ${s.device}?\n\nThat device is signed out automatically within a few seconds.${self}`)) return;
     run(async () => {
       await api('/sessions/' + s._id, { method: 'DELETE' });
       if (s.current) { localStorage.removeItem('kg_token'); nav('/admin/login'); }

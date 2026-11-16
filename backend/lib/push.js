@@ -1,67 +1,89 @@
 const webpush = require('web-push');
-const { PushSub, PushLog, Setting } = require('../models');
+const Subscription = require('../models/Subscription');
+const { Setting } = require('../models');
 
-// ---- Push keys -------------------------------------------------------------------------------------------
-// Web Push needs a VAPID key pair. If you set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY they are used. If not (or if
-// they are invalid) the server creates a pair ONCE, stores it in MongoDB and reuses it, so alerts work with zero setup.
+// ---- VAPID keys (free, no account needed) -------------------------------------------------------------------
+// Best: set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT in your environment (npm run vapid makes a pair).
+// If they are missing or invalid, a pair is created ONCE and stored in MongoDB so alerts still work.
 let cache = null;
+
+function subject() {
+  const s = (process.env.VAPID_SUBJECT || '').trim();
+  if (/^(mailto:|https:\/\/)/i.test(s)) return s;
+  return 'mailto:' + (s || 'admin@example.com');
+}
 
 async function loadKeys() {
   if (cache) return cache;
-  const subject = process.env.VAPID_SUBJECT || 'mailto:admin@khang.pk';
-  const pub = (process.env.VAPID_PUBLIC_KEY || process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '').trim(); // either name works
+  const pub = (process.env.VAPID_PUBLIC_KEY || '').trim();
   const priv = (process.env.VAPID_PRIVATE_KEY || '').trim();
-  let envProblem = '';
+  let problem = '';
   if (pub && priv) {
-    try {
-      webpush.setVapidDetails(subject, pub, priv); // throws if the pair is malformed
-      cache = { publicKey: pub, privateKey: priv, subject, source: 'env', envProblem };
-      return cache;
-    } catch (e) { envProblem = e.message; console.error('VAPID env keys rejected, using automatic keys:', e.message); }
+    try { webpush.setVapidDetails(subject(), pub, priv); cache = { publicKey: pub, privateKey: priv, subject: subject(), source: 'env' }; return cache; }
+    catch (e) { problem = e.message; console.error('VAPID env keys rejected, using stored keys:', e.message); }
   }
   let doc = await Setting.findOne({ key: 'vapid' }).lean();
   if (!doc) {
     try { doc = await Setting.findOneAndUpdate({ key: 'vapid' }, { $setOnInsert: { value: webpush.generateVAPIDKeys() } }, { upsert: true, new: true }).lean(); }
     catch { doc = await Setting.findOne({ key: 'vapid' }).lean(); } // another server instance created it first
   }
-  webpush.setVapidDetails(subject, doc.value.publicKey, doc.value.privateKey);
-  cache = { publicKey: doc.value.publicKey, privateKey: doc.value.privateKey, subject, source: 'auto', envProblem };
+  webpush.setVapidDetails(subject(), doc.value.publicKey, doc.value.privateKey);
+  cache = { publicKey: doc.value.publicKey, privateKey: doc.value.privateKey, subject: subject(), source: 'database', problem };
   return cache;
 }
 
-async function getPushInfo() {
-  try { const k = await loadKeys(); return { ready: true, publicKey: k.publicKey, source: k.source, problem: k.envProblem }; }
-  catch (e) { return { ready: false, publicKey: '', source: '', problem: e.message }; }
+async function getPublicKey() {
+  try { return (await loadKeys()).publicKey; } catch (e) { console.error('push keys unavailable:', e.message); return ''; }
 }
 
-// ---- Sending ---------------------------------------------------------------------------------------------
-// Sends one notification to every admin device (or only the ids in `only`) and records the result per device.
-// Never throws; waits at most `wait` ms so a customer's order is never held up.
+// ---- Sending + automatic dead-token cleanup -------------------------------------------------------------------
+const MAX_FAILS = 10; // a device that fails this many sends in a row for other reasons is removed too
+
+// Sends `payload` to every saved admin device (or only those whose _id is in `only`).
+// - 404 / 410 from the push service = the device uninstalled the app / revoked permission -> its document is DELETED.
+// - Any other error is recorded; after MAX_FAILS consecutive failures the device is deleted as well.
+// Never throws, and never waits longer than `wait` ms, so a customer's order is never held up.
 async function notifyAdmins(payload, { wait = 6000, only = null } = {}) {
-  let k;
-  try { k = await loadKeys(); } catch (e) { return { sent: 0, devices: 0, results: [], reason: 'Push keys could not be loaded: ' + e.message }; }
-  const subs = await PushSub.find(only ? { _id: { $in: only } } : {});
-  const opts = { TTL: 60 * 60 * 24, urgency: 'high', vapidDetails: { subject: k.subject, publicKey: k.publicKey, privateKey: k.privateKey } };
-  const results = [];
+  let keys;
+  try { keys = await loadKeys(); } catch (e) { return { total: 0, sent: 0, removed: 0, errors: ['Push keys could not be loaded: ' + e.message] }; }
+  const subs = await Subscription.find(only ? { _id: { $in: only } } : {}).lean();
+  const out = { total: subs.length, sent: 0, removed: 0, errors: [] };
+  const body = JSON.stringify(payload);
+  const opts = { TTL: 60 * 60 * 24, urgency: 'high', vapidDetails: { subject: keys.subject, publicKey: keys.publicKey, privateKey: keys.privateKey } };
+
   const job = Promise.all(subs.map(async (s) => {
     try {
-      // each device gets its own id inside the message so the phone can confirm receipt
-      await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, JSON.stringify({ ...payload, sid: String(s._id) }), opts);
-      s.lastOkAt = new Date(); s.lastError = '';
-      results.push({ id: String(s._id), device: s.device, ok: true });
+      await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, body, opts);
+      out.sent += 1;
+      await Subscription.updateOne({ _id: s._id }, { $set: { lastSentAt: new Date(), failCount: 0, lastError: '' } });
     } catch (e) {
-      const gone = e.statusCode === 404 || e.statusCode === 410;
-      const keyClash = e.statusCode === 401 || e.statusCode === 403;
-      s.lastError = gone ? 'Device unsubscribed (phone data was cleared or the browser dropped it). Open the admin app on it once to register again.' : keyClash ? 'Registered with an old key. Open the admin app on this device once and it fixes itself.' : `${e.statusCode || 'network'}: ${String(e.body || e.message || '').slice(0, 120)}`;
-      results.push({ id: String(s._id), device: s.device, ok: false, error: s.lastError });
-      // The registration is kept (never deleted automatically). It heals itself when the phone opens the admin app, or you remove it yourself.
+      const code = e.statusCode;
+      if (code === 404 || code === 410) {                    // dead token: uninstalled / permission revoked / expired
+        await Subscription.deleteOne({ _id: s._id });
+        out.removed += 1;
+        return;
+      }
+      const msg = `${code || 'network'}: ${String(e.body || e.message || '').slice(0, 140)}`;
+      out.errors.push(msg);
+      if ((s.failCount || 0) + 1 >= MAX_FAILS) { await Subscription.deleteOne({ _id: s._id }); out.removed += 1; return; }
+      await Subscription.updateOne({ _id: s._id }, { $inc: { failCount: 1 }, $set: { lastError: msg } });
     }
-    try { await s.save(); } catch { /* recording the result is optional */ }
-  }));
+  }).map((p) => p.catch((e) => out.errors.push(String(e.message || e)))));
   await Promise.race([job, new Promise((r) => setTimeout(r, wait))]);
-  const sent = results.filter((r) => r.ok).length;
-  try { await PushLog.create({ title: payload.title, kind: payload.test ? 'test' : 'order', devices: subs.length, sent, pending: Math.max(subs.length - results.length, 0), results: results.map(({ device, ok, error }) => ({ device, ok, error })) }); } catch { /* the log is optional */ }
-  return { sent, devices: subs.length, results };
+  return out;
 }
 
-module.exports = { notifyAdmins, getPushInfo };
+// Called from the createOrder controller (routes/orders.js)
+function notifyNewOrder(order) {
+  const items = (order.items || []).reduce((n, i) => n + (i.qty || 0), 0);
+  const id = String(order._id).slice(-5).toUpperCase();
+  return notifyAdmins({
+    title: `New order #${id} · Rs. ${Number(order.total || 0).toLocaleString('en-PK')}`,
+    body: `${order.customerName} · ${items} item${items === 1 ? '' : 's'} · ${order.type === 'pickup' ? 'Pickup' : 'Delivery'}`,
+    tag: 'order-' + order._id,
+    url: '/admin/orders',
+    orderId: String(order._id),
+  });
+}
+
+module.exports = { notifyAdmins, notifyNewOrder, getPublicKey };

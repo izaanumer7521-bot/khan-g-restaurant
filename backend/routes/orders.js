@@ -3,7 +3,7 @@ const { Order, MenuItem, Customer } = require('../models');
 const auth = require('../middleware/auth');
 const wrap = require('../middleware/wrap');
 const normalizePhone = require('../lib/phone');
-const { notifyAdmins } = require('../lib/push');
+const { notifyNewOrder } = require('../lib/push');
 
 const DELIVERY_CHARGE = process.env.DELIVERY_CHARGE ? Number(process.env.DELIVERY_CHARGE) : 100;
 const PAY_TYPES = ['easypaisa', 'jazzcash', 'bank']; // keep in sync with PAY_TYPES in frontend/src/config.js
@@ -67,15 +67,8 @@ r.post('/', wrap(async (req, res) => {
   // Save the customer so the admin sees them in the Customers list
   Customer.findOneAndUpdate({ phone }, { name: customerName, phone, ...(isPickup ? {} : { address }), lastLogin: new Date() }, { upsert: true, setDefaultsOnInsert: true }).catch(() => {});
 
-  // Alert every registered admin device (push notification). A failure here never blocks the customer's order.
-  const count = lines.reduce((s, l) => s + l.qty, 0);
-  try {
-    await notifyAdmins({
-      title: `New order #${short(order)} · Rs. ${order.total.toLocaleString('en-PK')}`,
-      body: `${customerName} · ${count} item${count > 1 ? 's' : ''} · ${isPickup ? 'Pickup' : 'Delivery'} · ${advance ? 'Pays rider online' : 'Cash'}`,
-      tag: 'order-' + order._id, url: '/admin/orders', orderId: String(order._id),
-    });
-  } catch (e) { console.error('order alert failed:', e.message); }
+  // Push an alert to every admin device. Never throws and never blocks the customer's order.
+  try { await notifyNewOrder(order); } catch (e) { console.error('order alert failed:', e.message); }
 
   res.status(201).json({ _id: order._id, no: short(order), subtotal, deliveryCharge, total: order.total, paymentMethod: order.paymentMethod, paymentType: order.paymentType });
 }));

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import AlertCenter from './AlertCenter.jsx';
+import AlertToggle from './AlertToggle.jsx';
 import Icon from './icons.jsx';
 import { InstallButton } from '../lib/install.jsx';
 
@@ -54,6 +55,7 @@ export default function AdminLayout() {
         </div>
         <nav>{links.map(([to, l, ic]) => <NavLink key={to} to={to} end={to === '/admin'}><Icon name={ic} />{l}</NavLink>)}</nav>
         <div className="side-foot">
+          <AlertToggle />
           <InstallButton always className="btn ghost sm install" label="Install admin app" name="Khan G Admin" />
           <button className="btn ghost sm logout" onClick={logout}>Log out</button>
           <a className="muted sitelink" href="/" target="_blank" rel="noreferrer">View website</a>

@@ -48,26 +48,19 @@ Phone, WhatsApp, address and hours: `frontend/src/config.js`.
 
 ## Installable apps and order alerts
 
-The website is a PWA, so customers can install it (footer, phone menu and a banner offer "Install the app").
-The admin panel at `/admin` is a **separate installable app** called "Khan G Admin" (Account page or the sidebar button).
+The website is a PWA, so customers can install it. The admin panel at `/admin` is a **separate installable app** called "Khan G Admin" (`frontend/public/admin.webmanifest`, scope `/admin/`).
 
-**Order alerts (admin phone/laptop)**
-1. Add these environment variables in Vercel (Settings, Environment Variables) and redeploy:
-   `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (make a pair with `npx web-push generate-vapid-keys`), optional `DELIVERY_CHARGE` (default 100).
-2. On each admin phone/laptop: open `/admin`, log in, go to Account, tap **Turn on alerts**, allow notifications, then tap **Send test alert**.
-3. iPhone: first Share, Add to Home Screen, then open the admin app from the Home Screen and turn on alerts (iOS 16.4 or newer).
+### Order alerts (v17: rebuilt from scratch)
+One switch: **Order alerts on this device** (bottom of the admin sidebar, and Account > Notifications).
 
-Every new order sends a notification (with the phone's notification sound) to every device that turned alerts on, even when the app is closed.
-When the admin app is open it also rings a louder alarm and shows a pop-up until you tap it.
+1. Make free push keys once: `npm run vapid`
+2. In Vercel > Settings > Environment Variables add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (e.g. `mailto:you@gmail.com`), then **Redeploy**.
+3. On every admin phone: open `/admin`, log in, install the app (Account > App), open it, switch **Order alerts on this device** on and allow notifications.
+4. iPhone: Share > Add to Home Screen first, open from the Home Screen, then switch it on (iOS 16.4+).
 
+How it works: `web-push` (free) sends to each saved device (MongoDB collection `adminsubscriptions`, one document per endpoint, upserted). `sw.js` shows the notification (stays until tapped, vibrates, phone sound) even when the app is closed. Devices that report 404/410 are deleted automatically. The switch reads the real state from the browser and server, and the app quietly re-registers the device whenever it is opened, so clearing the cache does not disconnect it.
 
-### Alerts not arriving when the app is closed?
-Open the admin app, go to Account, and read the **Order alerts** checklist. Every line must be green. The first red line tells you the fix:
-- *Server push keys MISSING*: add `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` in Vercel, then redeploy.
-- *Registered on server NO* or *last alert failed*: press **Fix this device**, then **Send test alert**.
-- Android: set Chrome (and Khan G Admin) battery to Unrestricted.
-
-
+Old v10-v16 collections (`pushsubs`, `pushlogs`) are no longer used; you can drop them in Atlas.
 
 ## v9 additions
 
@@ -80,35 +73,3 @@ Open the admin app, go to Account, and read the **Order alerts** checklist. Ever
 **Admin > Devices**: every signed-in customer and admin device. "Log out device" deletes that session and the device is signed out automatically (within about 30 seconds, or on its next action). Customers can be **blocked** (logged out everywhere, cannot sign in or order) and **unblocked** from Customers or Devices.
 
 After deploying v9, the admin signs in once more and customers sign in once more (old logins have no device session).
-
-
-## v10: order notifications on every admin device
-
-- **No setup needed.** The server creates its own push keys the first time and stores them in MongoDB. `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` are now optional. If you already set them and they are valid, they are still used.
-- **Add as many phones and computers as you like.** On each one open `/admin`, go to **Account > Notifications** and press **Turn on alerts**. Every device gets every new order, with the phone's notification sound, even when the app is closed.
-- **Self-repairing.** If the browser replaces a phone's registration, the service worker re-registers it in the background. Opening the admin app also re-registers the device.
-- **Per-device control.** Account > Notifications lists each device with its last delivery, a Test button and Remove. Logging a device out in Admin > Devices also stops its alerts.
-- Admin logins now stay signed in for 90 days of use (the timer restarts every time the device is used), so the restaurant phone keeps receiving alerts.
-- After deploying, open the admin app once on each phone and press **Turn on alerts** (or **Repair** if the card says so).
-
-### Using your own push keys on Vercel (recommended)
-Vercel > your project > **Settings > Environment Variables** > add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` (for example `mailto:you@yourmail.com`) for **Production**, then **Redeploy** (variables only apply to new deployments). Then open Account > Notifications on every phone; devices registered with a different key re-register themselves automatically.
-
-
-## v13: permanent alert registration (Telegram removed)
-- A device registered for order alerts **stays registered until you unregister it** in Account > Notifications. Logging out or removing a login in Admin > Devices does not stop its alerts, and the server never deletes a registration by itself.
-- If a phone's own data was cleared, the registration is marked as needing attention and fixes itself the next time the admin app is opened on that phone.
-
-## v14: registration reliability
-- The phone registers one step at a time, so two parts of the admin app can no longer collide while saving the same device.
-- The server retries a save that collides and removes stray old database indexes by itself.
-- Account > Notifications now checks that the server really has this device and registers it again automatically if not. Any failure shows the exact reason, and "Technical details" lists what the browser and the server each know.
-
-## v15: one row per device + delivery log
-- Each phone or computer keeps a random id in its own storage, so re-registering always updates the same row. No more 2 or 3 copies of one phone. Old copies from the same login, and registrations the push service reports as gone, are removed automatically when the device registers again.
-- Account > Notifications has a **Recent alerts** list. For every new order it shows whether the server sent the alert, to how many devices, and the exact error for any device that failed. "Delivered" means Google or Apple accepted it for the phone; if nothing shows on the phone after that, the phone's own battery or notification settings are blocking it.
-
-## v16: phone-confirmed alerts
-- "Accepted by Google" is not the same as "received by the phone". Every alert now carries a per-device id, and the phone's service worker confirms receipt back to the server. Account > Notifications shows **Phone confirmed receiving an alert X ago** per device.
-- **Send test alert** waits for that confirmation. If Google accepted the test but the phone never confirmed, the saved registration is stale: the app registers the phone again by itself and tests once more, then tells you clearly whether it worked or whether the phone is blocking background alerts.
-- The page now finds this phone's row by row id, push address or device id, so "this device needs a repair" can no longer stay on screen while the server already has the phone.

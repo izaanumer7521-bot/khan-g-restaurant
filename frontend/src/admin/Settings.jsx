@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { InstallButton, useInstall } from '../lib/install.jsx';
-import Notifications from './Notifications.jsx';
+import AlertToggle from './AlertToggle.jsx';
 
 function AppCard({ onLogout }) {
   const { installed, canPrompt } = useInstall();
@@ -78,7 +78,7 @@ export default function Settings() {
         <button role="tab" aria-selected={tab === 'security'} className={tab === 'security' ? 'on' : ''} onClick={() => setTab('security')}>🔒 Security</button>
         <button role="tab" aria-selected={tab === 'app'} className={tab === 'app' ? 'on' : ''} onClick={() => setTab('app')}>📲 App</button>
       </div>
-      {tab === 'alerts' && <Notifications />}
+      {tab === 'alerts' && <AlertToggle card />}
       {tab === 'security' && <Security />}
       {tab === 'app' && <AppCard onLogout={logout} />}
     </div>

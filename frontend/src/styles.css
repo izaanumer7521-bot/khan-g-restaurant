@@ -578,3 +578,15 @@ input[type=date],input[type=time]{color-scheme:dark}
   .chk{padding:9px 10px}
   .chk b{font-size:.8rem}
 }
+
+/* Order alerts toggle */
+.atoggle{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.atoggle-txt{display:flex;flex-direction:column;min-width:0}
+.atoggle-txt small{color:var(--mute);font-size:.8rem}
+.atoggle-hint{font-size:.82rem;margin-top:8px}
+.atoggle-wrap{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:4px}
+.switch{flex:none;position:relative;width:52px;height:30px;border-radius:999px;border:1px solid var(--line);background:#2a2a2a;cursor:pointer;transition:background .2s;padding:0}
+.switch i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .2s}
+.switch.on{background:var(--red);border-color:var(--red)}
+.switch.on i{transform:translateX(22px)}
+.switch:disabled{opacity:.5;cursor:not-allowed}

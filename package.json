@@ -7,7 +7,8 @@
     "dev:api": "cd backend && node server.js",
     "dev:web": "vite frontend",
     "seed": "cd backend && node seed.js",
-    "seed:menu": "cd backend && node seed-menu.js"
+    "seed:menu": "cd backend && node seed-menu.js",
+    "vapid": "web-push generate-vapid-keys"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.1",

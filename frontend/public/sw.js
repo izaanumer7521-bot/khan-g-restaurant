@@ -1,5 +1,5 @@
 // Khan G service worker: offline shell, and order alerts for the admin app.
-const CACHE = 'kg-v1';
+const CACHE = 'kg-v2';
 const SHELL = ['/', '/logo.png', '/icon-192.png'];
 
 self.addEventListener('install', (e) => {
@@ -35,33 +35,33 @@ self.addEventListener('fetch', (e) => {
 });
 
 // ---- Admin order alerts (Web Push) ----
+// Runs in the background, even when the app is closed and the phone is locked. Nothing here depends on localStorage or
+// the page cache, so clearing the browser cache never disconnects alerts.
 self.addEventListener('push', (e) => {
   let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch { d = { title: 'New order', body: e.data && e.data.text() }; }
+  try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data ? e.data.text() : '' }; }
   e.waitUntil((async () => {
+    // Chrome requires every push to show a notification, so always show one first.
     await self.registration.showNotification(d.title || 'New order', {
       body: d.body || '',
       icon: '/admin-192.png',
       badge: '/favicon-192.png',
       tag: d.tag || 'order',
-      renotify: true,
-      requireInteraction: true,   // stays on screen until the admin taps it
-      silent: false,              // plays the phone's notification sound
-      vibrate: [400, 150, 400, 150, 600],
+      renotify: true,               // same tag still re-alerts (sound + vibration)
+      requireInteraction: true,     // stays until the admin taps or dismisses it
+      silent: false,                // use the phone's notification sound
+      vibrate: [500, 200, 500, 200, 800],
       timestamp: Date.now(),
       data: { url: d.url || '/admin/orders' },
       actions: [{ action: 'open', title: 'View order' }],
     });
-    // Tell the server this phone really received the alert (shown in Account > Notifications)
-    if (d.sid) await fetch('/api/push/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sid: d.sid }), keepalive: true }).catch(() => {});
-    // If the admin app is open, let it ring its own alarm too
+    // If the admin app is open (even minimised), let it also ring its looping alarm sound.
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     wins.forEach((w) => w.postMessage({ type: 'order-alert', data: d }));
   })());
 });
 
-// The browser can replace a phone's push registration at any time (even with the app closed). Re-register in the
-// background so order alerts keep arriving without anyone opening the admin app.
+// The browser may replace a push registration at any time. Re-register in the background so alerts keep arriving.
 const b64ToBytes = (b64) => {
   const pad = '='.repeat((4 - (b64.length % 4)) % 4);
   const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
