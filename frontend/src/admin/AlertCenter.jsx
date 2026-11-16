@@ -21,14 +21,14 @@ export default function AlertCenter() {
     if (busy.current) return; busy.current = true;
     try {
       const d = await api('/orders/latest');
-      if (!d.last) return;
       const seen = getSeen();
-      if (seen === null) { setSeen(d.last.createdAt); return; }      // first run: nothing to announce
-      if (new Date(d.last.createdAt) > new Date(seen)) {
-        const all = await api('/orders');
-        const fresh = all.filter((o) => new Date(o.createdAt) > new Date(seen));
-        if (fresh.length) setPopup((p) => (p && p.orders.length === fresh.length ? p : { orders: fresh }));
-      }
+      if (seen === null) { if (d.last) setSeen(d.last.createdAt); return; }   // first run: nothing to announce
+      if (!d.last || new Date(d.last.createdAt) <= new Date(seen)) { setPopup(null); return; } // nothing new left (e.g. the order was deleted): stop the alarm
+      const all = await api('/orders');
+      const fresh = all.filter((o) => new Date(o.createdAt) > new Date(seen));
+      if (!fresh.length) { setPopup(null); return; }
+      const ids = fresh.map((o) => o._id).join();
+      setPopup((p) => (p && p.orders.map((o) => o._id).join() === ids ? p : { orders: fresh }));
     } catch { /* offline or logged out: ignore */ } finally { busy.current = false; }
   }, []);
 
@@ -39,8 +39,9 @@ export default function AlertCenter() {
     const vis = () => { if (!document.hidden) check(); };
     const msg = (e) => { if (e.data && e.data.type === 'order-alert' && !e.data.data?.test) check(); else if (e.data?.data?.test) chime(); };
     document.addEventListener('visibilitychange', vis);
+    window.addEventListener('kg-orders-changed', check);
     navigator.serviceWorker?.addEventListener('message', msg);
-    return () => { clearInterval(t); document.removeEventListener('visibilitychange', vis); navigator.serviceWorker?.removeEventListener('message', msg); };
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', vis); window.removeEventListener('kg-orders-changed', check); navigator.serviceWorker?.removeEventListener('message', msg); };
   }, [check]);
 
   // browsers only allow sound after a tap: unlock on the first one

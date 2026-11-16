@@ -8,6 +8,6 @@ export default function useList(path) {
   const reload = useCallback(() => api(path).then((d) => { setData(d); setErr(''); }).catch((e) => setErr(e.message)).finally(() => setLoading(false)), [path]);
   useEffect(() => { reload(); }, [reload]);
   const patch = async (id, body) => { await api(`${path}/${id}`, { method: 'PATCH', body }); reload(); };
-  const remove = async (id) => { if (!window.confirm('Delete this permanently?')) return; await api(`${path}/${id}`, { method: 'DELETE' }); reload(); };
+  const remove = async (id) => { if (!window.confirm('Delete this permanently?')) return; await api(`${path}/${id}`, { method: 'DELETE' }); reload(); window.dispatchEvent(new Event('kg-orders-changed')); };
   return { data, loading, err, reload, patch, remove };
 }
