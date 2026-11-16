@@ -29,6 +29,10 @@ export async function currentEndpoint() {
 // Returns: 'on' | 'off' | 'denied' | 'unsupported' | 'server-off'. Throws a readable Error if registering fails.
 // ask = true only from a button tap (browsers require a tap to show the permission box)
 // Calls run one at a time, so the admin layout and the Account page can never register the phone at the same moment.
+// The registration the server last confirmed saving for this browser (id of its row + the browser's endpoint)
+let lastReg = null;
+export const getLastReg = () => lastReg;
+
 let chain = Promise.resolve();
 export function syncPush(ask = false) {
   const p = chain.then(() => doSync(ask));
@@ -62,7 +66,8 @@ async function doSync(ask) {
       sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(key) });
     }
   }
-  await api('/push/subscribe', { method: 'POST', body: { ...sub.toJSON(), deviceId: getDeviceId() } });
+  const saved = await api('/push/subscribe', { method: 'POST', body: { ...sub.toJSON(), deviceId: getDeviceId() } });
+  lastReg = { id: saved.id, endpoint: sub.endpoint };
   return 'on';
 }
 
@@ -71,7 +76,9 @@ export async function registerCurrent() {
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.getSubscription();
   if (!sub) throw new Error('This browser has no push registration yet');
-  return api('/push/subscribe', { method: 'POST', body: { ...sub.toJSON(), deviceId: getDeviceId() } });
+  const saved = await api('/push/subscribe', { method: 'POST', body: { ...sub.toJSON(), deviceId: getDeviceId() } });
+  lastReg = { id: saved.id, endpoint: sub.endpoint };
+  return saved;
 }
 
 export async function turnOffPush() {

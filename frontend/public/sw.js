@@ -52,6 +52,8 @@ self.addEventListener('push', (e) => {
       data: { url: d.url || '/admin/orders' },
       actions: [{ action: 'open', title: 'View order' }],
     });
+    // Tell the server this phone really received the alert (shown in Account > Notifications)
+    if (d.sid) await fetch('/api/push/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sid: d.sid }), keepalive: true }).catch(() => {});
     // If the admin app is open, let it ring its own alarm too
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     wins.forEach((w) => w.postMessage({ type: 'order-alert', data: d }));

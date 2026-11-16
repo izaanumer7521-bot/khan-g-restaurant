@@ -65,6 +65,7 @@ const PushSub = model('PushSub', new Schema({
   keys: { p256dh: String, auth: String },
   user: { type: Schema.Types.ObjectId, ref: 'User' },
   deviceId: { type: String, default: '', index: true }, // random id kept in the phone's storage: one registration row per physical device
+  lastAckAt: Date, // set by the phone itself the moment it receives an alert: proof it really arrived (not just accepted by Google)
   session: { type: Schema.Types.ObjectId, ref: 'Session' }, // login that last registered this device (informational; logging out does not remove the registration)
   device: { type: String, default: '' }, // short label like "Chrome on Android"
   lastOkAt: Date,

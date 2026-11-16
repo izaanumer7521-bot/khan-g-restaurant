@@ -51,6 +51,13 @@ r.post('/unsubscribe', auth, wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// The phone calls this from its service worker the moment an alert arrives (see sw.js)
+r.post('/ack', wrap(async (req, res) => {
+  const sid = String((req.body && req.body.sid) || '');
+  if (/^[0-9a-f]{24}$/i.test(sid)) await PushSub.updateOne({ _id: sid }, { lastAckAt: new Date() });
+  res.json({ ok: true });
+}));
+
 // Alerts stay registered until the owner removes the device here (or turns alerts off on the device itself)
 r.delete('/devices/:id', auth, wrap(async (req, res) => { await PushSub.findByIdAndDelete(req.params.id); res.json({ ok: true }); }));
 
@@ -60,7 +67,7 @@ r.get('/status', auth, wrap(async (req, res) => {
   res.json({
     serverReady: info.ready, keySource: info.source, serverProblem: info.ready ? '' : info.problem, keyNote: info.ready ? info.problem : '',
     logs: logs.map((l) => ({ id: l._id, title: l.title, kind: l.kind, at: l.createdAt, devices: l.devices, sent: l.sent, pending: l.pending, results: l.results })),
-    devices: subs.map((s) => ({ id: s._id, deviceId: s.deviceId, endpoint: s.endpoint, device: s.device || 'Unknown device', createdAt: s.createdAt, openedAt: s.updatedAt, lastOkAt: s.lastOkAt, lastError: s.lastError })),
+    devices: subs.map((s) => ({ id: s._id, deviceId: s.deviceId, endpoint: s.endpoint, device: s.device || 'Unknown device', createdAt: s.createdAt, openedAt: s.updatedAt, lastOkAt: s.lastOkAt, lastAckAt: s.lastAckAt, lastError: s.lastError })),
   });
 }));
 

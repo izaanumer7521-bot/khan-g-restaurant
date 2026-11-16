@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { syncPush, turnOffPush, pushSupported, repairPush, currentEndpoint, registerCurrent, getDeviceId } from '../lib/push.js';
+import { syncPush, turnOffPush, pushSupported, repairPush, currentEndpoint, registerCurrent, getDeviceId, getLastReg } from '../lib/push.js';
 import { chime, unlockAudio } from '../lib/sound.js';
 import { isStandalone } from '../lib/install.jsx';
 
@@ -55,21 +55,47 @@ export default function Notifications() {
     run(async () => { await api('/push/devices/' + d.id, { method: 'DELETE' }); if (d.endpoint === mine) { await turnOffPush().catch(() => {}); setSt('off'); } });
   };
   const cleanup = () => run(async () => { const r = await api('/push/cleanup', { method: 'POST' }); setNote({ ok: true, text: `Removed ${r.removed} broken registration${r.removed === 1 ? '' : 's'}.` }); });
+  // The phone confirms receipt by itself (sw.js). Wait for that proof instead of trusting "accepted by Google".
+  const waitAck = async (rowId, since) => {
+    for (let k = 0; k < 5; k++) {
+      await new Promise((r) => setTimeout(r, 1500));
+      let s2; try { s2 = await api('/push/status'); } catch { continue; }
+      setInfo(s2);
+      const d = s2.devices.find((x) => x.id === rowId);
+      if (d && d.lastAckAt && new Date(d.lastAckAt).getTime() >= since) return true;
+    }
+    return false;
+  };
+  const sendTest = async (id) => { const since = Date.now() - 3000; const r = await api('/push/test', { method: 'POST', body: id ? { id } : {} }); return { r, since }; };
   const test = (id) => run(async () => {
     unlockAudio(); chime();
-    const r = await api('/push/test', { method: 'POST', body: id ? { id } : {} });
+    let { r, since } = await sendTest(id);
     const bad = (r.results || []).filter((x) => !x.ok);
-    let text;
-    if (r.reason) text = r.reason;
-    else if (!r.devices) text = 'No device is registered for alerts yet. Turn on alerts on this device first.';
-    else text = `Test sent to ${r.sent} of ${r.devices} device${r.devices === 1 ? '' : 's'}.` + (bad.length ? ' Problem: ' + bad.map((x) => `${x.device}: ${x.error}`).join(' · ') : ' Check your notifications now.');
-    setNote({ ok: !bad.length && !r.reason && !!r.devices, text });
+    const problems = bad.map((x) => `${x.device}: ${x.error}`).join(' · ');
+    if (r.reason) return setNote({ ok: false, text: r.reason });
+    if (!r.devices) return setNote({ ok: false, text: 'No device is registered for alerts yet. Turn on alerts on this device first.' });
+    if (!id) return setNote({ ok: !bad.length, text: `Test sent to ${r.sent} of ${r.devices} device${r.devices === 1 ? '' : 's'}.` + (bad.length ? ' Problem: ' + problems : ' Open the list below to see which phones confirmed receiving it.') });
+    if (bad.length) return setNote({ ok: false, text: 'Problem: ' + problems });
+    setNote({ ok: true, text: 'Test sent. Waiting for the phone to confirm it received it…' });
+    if (await waitAck(id, since)) return setNote({ ok: true, text: '✓ Confirmed: this phone received the test alert.' });
+    if (!(me && me.id === id)) return setNote({ ok: false, text: 'Google accepted the test but that device did not confirm. Open the admin app on that device and press Repair there.' });
+    // Google accepted it but this phone never got it, so the saved registration is stale. Register fresh and test once more.
+    setNote({ ok: true, text: 'Google accepted the test but this phone did not receive it, so its saved registration was stale. Registering this phone again…' });
+    setSt(await repairPush());
+    const reg = getLastReg();
+    if (!reg) return setNote({ ok: false, text: 'Could not register this phone again. Check the Technical details below.' });
+    ({ r, since } = await sendTest(reg.id));
+    if (await waitAck(reg.id, since)) return setNote({ ok: true, text: '✓ Fixed. This phone registered again and received the test alert.' });
+    return setNote({ ok: false, text: 'Registered again and Google accepted the test, but this phone still did not receive it. The phone is blocking background alerts for Chrome. Follow the battery steps in the tips below.' });
   });
 
   const devices = info ? info.devices : [];
   const logs = info ? info.logs || [] : [];
   const broken = devices.filter((d) => /^(Device unsubscribed|Registered with an old key)/.test(d.lastError || ''));
-  const me = info && mine ? devices.find((d) => d.endpoint === mine) : null;
+  const reg = getLastReg();
+  const localEp = mine || (reg ? reg.endpoint : '');
+  // find this phone's row by the id the server just gave us, its push address, or its device id
+  const me = info ? (devices.find((d) => reg && d.id === reg.id) || devices.find((d) => localEp && d.endpoint === localEp) || devices.find((d) => d.deviceId && d.deviceId === getDeviceId()) || null) : null;
   const needsInstall = isIos() && !isStandalone();
 
   // one clear headline for this device
@@ -95,8 +121,11 @@ export default function Notifications() {
   } else if (me && me.lastError) {
     tone = 'bad'; ic = '⚠️'; title = 'The last alert did not reach this device'; text = me.lastError;
     action = <button className="btn" disabled={busy} onClick={repair}>Repair this device</button>;
+  } else if (!me.lastAckAt) {
+    ic = '🔔'; title = 'Registered. Now confirm it works'; text = 'This phone is registered. Press Send test alert: the phone must confirm it received the alert. If it does not, the app repairs the registration by itself.';
+    action = <button className="btn" disabled={busy} onClick={() => test(me.id)}>Send test alert</button>;
   } else {
-    tone = 'good'; ic = '🔔'; title = 'Order alerts are active'; text = `This device is registered and is notified of every new order, even when the app is closed. It stays registered until you unregister it here, even if you log out.`;
+    tone = 'good'; ic = '🔔'; title = 'Order alerts are active'; text = `This phone confirmed receiving an alert ${ago(me.lastAckAt)}. It is notified of every new order and stays registered until you unregister it here, even if you log out.`;
     action = <button className="btn" disabled={busy} onClick={() => test(me.id)}>Send test alert</button>;
   }
 
@@ -141,7 +170,7 @@ export default function Notifications() {
               <div className="grow">
                 <strong>{d.device}</strong>{isMe && <span className="tag green">This device</span>}
                 <div className={d.lastError ? 'err' : 'muted'} style={{ fontSize: '.85rem' }}>
-                  {d.lastError ? d.lastError : d.lastOkAt ? `Last alert delivered ${ago(d.lastOkAt)}` : 'Not tested yet. Press Test.'}
+                  {d.lastError ? d.lastError : d.lastAckAt ? `Phone confirmed receiving an alert ${ago(d.lastAckAt)}` : d.lastOkAt ? `Accepted by Google ${ago(d.lastOkAt)}, but the phone has not confirmed receiving it` : 'Not tested yet. Press Test.'}
                 </div>
                 <div className="muted" style={{ fontSize: '.78rem' }}>Added {new Date(d.createdAt).toLocaleDateString()} · admin app last opened here {ago(d.openedAt)}</div>
               </div>
@@ -180,6 +209,8 @@ export default function Notifications() {
           Server has this registration: <b>{!info ? '…' : me ? 'yes' : 'no'}</b><br />
           Devices registered on server: <b>{info ? devices.length : '…'}</b><br />
           Push keys: <b>{info ? (info.serverReady ? (info.keySource === 'env' ? 'your Vercel keys' : 'automatic keys') : 'problem: ' + info.serverProblem) : '…'}</b><br />
+          This browser's push address ends: <b>{localEp ? '…' + localEp.slice(-10) : 'none'}</b><br />
+          Server rows: <b>{info ? (devices.map((d) => '…' + (d.endpoint || '').slice(-10) + (d.id === (me && me.id) ? ' (this phone)' : '')).join(', ') || 'none') : '…'}</b><br />
           Service worker controlling page: <b>{pushSupported() && navigator.serviceWorker.controller ? 'yes' : 'no'}</b>
         </div>
       </details>

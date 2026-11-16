@@ -107,3 +107,8 @@ Vercel > your project > **Settings > Environment Variables** > add `VAPID_PUBLIC
 ## v15: one row per device + delivery log
 - Each phone or computer keeps a random id in its own storage, so re-registering always updates the same row. No more 2 or 3 copies of one phone. Old copies from the same login, and registrations the push service reports as gone, are removed automatically when the device registers again.
 - Account > Notifications has a **Recent alerts** list. For every new order it shows whether the server sent the alert, to how many devices, and the exact error for any device that failed. "Delivered" means Google or Apple accepted it for the phone; if nothing shows on the phone after that, the phone's own battery or notification settings are blocking it.
+
+## v16: phone-confirmed alerts
+- "Accepted by Google" is not the same as "received by the phone". Every alert now carries a per-device id, and the phone's service worker confirms receipt back to the server. Account > Notifications shows **Phone confirmed receiving an alert X ago** per device.
+- **Send test alert** waits for that confirmation. If Google accepted the test but the phone never confirmed, the saved registration is stale: the app registers the phone again by itself and tests once more, then tells you clearly whether it worked or whether the phone is blocking background alerts.
+- The page now finds this phone's row by row id, push address or device id, so "this device needs a repair" can no longer stay on screen while the server already has the phone.

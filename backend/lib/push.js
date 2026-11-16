@@ -41,12 +41,12 @@ async function notifyAdmins(payload, { wait = 6000, only = null } = {}) {
   let k;
   try { k = await loadKeys(); } catch (e) { return { sent: 0, devices: 0, results: [], reason: 'Push keys could not be loaded: ' + e.message }; }
   const subs = await PushSub.find(only ? { _id: { $in: only } } : {});
-  const body = JSON.stringify(payload);
   const opts = { TTL: 60 * 60 * 24, urgency: 'high', vapidDetails: { subject: k.subject, publicKey: k.publicKey, privateKey: k.privateKey } };
   const results = [];
   const job = Promise.all(subs.map(async (s) => {
     try {
-      await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, body, opts);
+      // each device gets its own id inside the message so the phone can confirm receipt
+      await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, JSON.stringify({ ...payload, sid: String(s._id) }), opts);
       s.lastOkAt = new Date(); s.lastError = '';
       results.push({ id: String(s._id), device: s.device, ok: true });
     } catch (e) {
