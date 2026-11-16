@@ -1,5 +1,5 @@
 const webpush = require('web-push');
-const { PushSub, Setting } = require('../models');
+const { PushSub, PushLog, Setting } = require('../models');
 
 // ---- Push keys -------------------------------------------------------------------------------------------
 // Web Push needs a VAPID key pair. If you set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY they are used. If not (or if
@@ -59,7 +59,9 @@ async function notifyAdmins(payload, { wait = 6000, only = null } = {}) {
     try { await s.save(); } catch { /* recording the result is optional */ }
   }));
   await Promise.race([job, new Promise((r) => setTimeout(r, wait))]);
-  return { sent: results.filter((r) => r.ok).length, devices: subs.length, results };
+  const sent = results.filter((r) => r.ok).length;
+  try { await PushLog.create({ title: payload.title, kind: payload.test ? 'test' : 'order', devices: subs.length, sent, pending: Math.max(subs.length - results.length, 0), results: results.map(({ device, ok, error }) => ({ device, ok, error })) }); } catch { /* the log is optional */ }
+  return { sent, devices: subs.length, results };
 }
 
 module.exports = { notifyAdmins, getPushInfo };

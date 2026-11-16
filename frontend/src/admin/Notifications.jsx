@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { syncPush, turnOffPush, pushSupported, repairPush, currentEndpoint, registerCurrent } from '../lib/push.js';
+import { syncPush, turnOffPush, pushSupported, repairPush, currentEndpoint, registerCurrent, getDeviceId } from '../lib/push.js';
 import { chime, unlockAudio } from '../lib/sound.js';
 import { isStandalone } from '../lib/install.jsx';
 
@@ -54,6 +54,7 @@ export default function Notifications() {
     if (!window.confirm(`Unregister ${d.device}?\n\nIt will stop receiving order alerts until you turn alerts on there again.`)) return;
     run(async () => { await api('/push/devices/' + d.id, { method: 'DELETE' }); if (d.endpoint === mine) { await turnOffPush().catch(() => {}); setSt('off'); } });
   };
+  const cleanup = () => run(async () => { const r = await api('/push/cleanup', { method: 'POST' }); setNote({ ok: true, text: `Removed ${r.removed} broken registration${r.removed === 1 ? '' : 's'}.` }); });
   const test = (id) => run(async () => {
     unlockAudio(); chime();
     const r = await api('/push/test', { method: 'POST', body: id ? { id } : {} });
@@ -66,6 +67,8 @@ export default function Notifications() {
   });
 
   const devices = info ? info.devices : [];
+  const logs = info ? info.logs || [] : [];
+  const broken = devices.filter((d) => /^(Device unsubscribed|Registered with an old key)/.test(d.lastError || ''));
   const me = info && mine ? devices.find((d) => d.endpoint === mine) : null;
   const needsInstall = isIos() && !isStandalone();
 
@@ -124,11 +127,14 @@ export default function Notifications() {
       <div className="gcard" style={{ marginTop: 14 }}>
         <div className="gcard-h">
           <div><h3>Registered devices</h3><div className="sub">Every device here gets every new order and stays registered until you remove it. Add as many phones and computers as you like: open this page on each one and turn alerts on.</div></div>
-          {devices.length > 0 && <button className="btn ghost sm" disabled={busy} onClick={() => test(null)}>Test all devices</button>}
+          <div className="btns-row">
+            {broken.length > 0 && <button className="btn ghost sm danger" disabled={busy} onClick={cleanup}>Remove {broken.length} broken</button>}
+            {devices.length > 0 && <button className="btn ghost sm" disabled={busy} onClick={() => test(null)}>Test all devices</button>}
+          </div>
         </div>
         {!devices.length && <p className="muted">No device yet.</p>}
         {devices.map((d) => {
-          const isMe = d.endpoint === mine;
+          const isMe = d.endpoint === mine || (!!d.deviceId && d.deviceId === getDeviceId());
           return (
             <div className="item" key={d.id}>
               <div className="dev-ic">{icon(d.device)}</div>
@@ -146,6 +152,24 @@ export default function Notifications() {
             </div>
           );
         })}
+      </div>
+
+      <div className="gcard" style={{ marginTop: 14 }}>
+        <h3>Recent alerts sent by the server</h3>
+        <div className="sub">What happened when each new order (or test) was sent. “Delivered” means Google or Apple accepted it for your phone. If it says delivered but nothing shows, the phone itself is blocking it (see the tips below).</div>
+        {!logs.length && <p className="muted">Nothing sent yet. New orders and tests will appear here.</p>}
+        {logs.map((l) => (
+          <div className="item" key={l.id}>
+            <div className="grow">
+              <strong>{l.title}</strong>{l.kind === 'test' && <span className="tag">Test</span>}
+              <div className="muted" style={{ fontSize: '.8rem' }}>{ago(l.at)}</div>
+              <div className={l.devices === 0 || l.sent < l.devices ? 'err' : 'okmsg'} style={{ fontSize: '.88rem' }}>
+                {l.devices === 0 ? 'No device was registered when this was sent, so nothing could be delivered.' : `Delivered to ${l.sent} of ${l.devices} device${l.devices === 1 ? '' : 's'}${l.pending ? ` (${l.pending} did not answer in time)` : ''}`}
+              </div>
+              {(l.results || []).filter((r) => !r.ok).map((r, i) => <div key={i} className="muted" style={{ fontSize: '.78rem' }}>{r.device}: {r.error}</div>)}
+            </div>
+          </div>
+        ))}
       </div>
 
       <details className="gcard tips">
@@ -168,7 +192,9 @@ export default function Notifications() {
           <li><b>Android:</b> Settings → Apps → Chrome (and Khan G Admin) → Battery → <b>Unrestricted</b>. Keep notifications allowed.</li>
           <li><b>iPhone:</b> Share → Add to Home Screen, open the admin app from the Home Screen, then turn alerts on (iOS 16.4 or newer).</li>
           <li><b>Do not</b> use “Force stop”, “Clear data / storage” or phone cleaner / booster apps on Chrome or Khan G Admin. They delete the alert registration or stop the browser from receiving messages. After doing that, open the admin app and press <b>Turn on alerts</b> again.</li>
-          <li>Xiaomi, Oppo, Vivo, Infinix, Tecno, Realme: also switch <b>Autostart</b> on and set battery to <b>No restrictions</b> for Chrome, and lock the app in the recent-apps screen.</li>
+          <li><b>Oppo / Realme / OnePlus (ColorOS):</b> Settings → Apps → App management → <b>Chrome</b> → Battery usage → turn on <b>Allow background activity</b> and <b>Allow auto-launch</b>. Do the same for <b>KG Admin</b> if it is listed. Open the recent-apps screen and <b>lock</b> Chrome and KG Admin (pull the card down or tap the lock). Turn off “Sleep standby optimisation” in Battery settings.</li>
+          <li><b>Xiaomi, Vivo, Infinix, Tecno:</b> switch <b>Autostart</b> on, set battery to <b>No restrictions</b> for Chrome, and lock the app in the recent-apps screen.</li>
+          <li>Settings → Notifications → <b>Chrome</b> and <b>KG Admin</b>: allow notifications, sound, banners and lock-screen notifications. Make sure the phone is not in Silent or Do not disturb mode.</li>
           <li>If a phone shows <b>admin app last opened</b> a long time ago it is still registered. Alerts only fail if the phone's own settings block them.</li>
           <li>A phone that was switched off gets the alert as soon as it is back online (held for 24 hours).</li>
           {pushSupported() ? null : <li>This browser does not support background alerts.</li>}

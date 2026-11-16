@@ -1,9 +1,11 @@
 const r = require('express').Router();
-const { PushSub } = require('../models');
+const { PushSub, PushLog } = require('../models');
 const auth = require('../middleware/auth');
 const wrap = require('../middleware/wrap');
 const { notifyAdmins, getPushInfo } = require('../lib/push');
 const { deviceName } = require('../lib/device');
+
+const DEAD = /^(Device unsubscribed|Registered with an old key)/; // failures that can never recover on their own
 
 r.get('/key', wrap(async (req, res) => { const i = await getPushInfo(); res.json({ key: i.ready ? i.publicKey : '' }); }));
 
@@ -12,7 +14,12 @@ r.post('/subscribe', auth, wrap(async (req, res) => {
   const { endpoint, keys } = req.body || {};
   if (!endpoint || !keys || !keys.p256dh || !keys.auth) return res.status(400).json({ message: 'Invalid subscription' });
   const device = deviceName(req.headers['user-agent']);
-  const save = () => PushSub.findOneAndUpdate({ endpoint }, { endpoint, keys, user: req.user._id, session: req.sessionId, device }, { upsert: true, new: true });
+  const deviceId = String((req.body && req.body.deviceId) || '').slice(0, 80);
+  // One row per physical phone/computer: the same deviceId always updates its own row, so re-registering never creates a second one.
+  const save = async () => {
+    await PushSub.deleteMany({ endpoint, ...(deviceId ? { deviceId: { $ne: deviceId } } : {}) }); // an older row that holds this same endpoint
+    return PushSub.findOneAndUpdate(deviceId ? { deviceId } : { endpoint }, { endpoint, keys, user: req.user._id, session: req.sessionId, device, deviceId }, { upsert: true, new: true });
+  };
   let doc;
   try { doc = await save(); }
   catch (e) {
@@ -21,8 +28,9 @@ r.post('/subscribe', auth, wrap(async (req, res) => {
     await PushSub.syncIndexes().catch(() => {});
     doc = await save();
   }
-  // This device registered again, so a dead registration of the same kind of device (phone wiped, old key) is replaced, not piled up.
-  await PushSub.deleteMany({ endpoint: { $ne: endpoint }, device, lastError: { $regex: /^(Device unsubscribed|Registered with an old key)/ } });
+  // This browser can only hold one registration, so any other row from this same login is an old copy of it. Remove those, plus broken
+  // registrations of the same kind of device.
+  await PushSub.deleteMany({ _id: { $ne: doc._id }, $or: [{ session: req.sessionId }, { device, lastError: { $regex: DEAD } }] });
   res.json({ ok: true, id: doc._id, total: await PushSub.countDocuments() });
 }));
 
@@ -48,12 +56,16 @@ r.delete('/devices/:id', auth, wrap(async (req, res) => { await PushSub.findById
 
 // What is set up and which devices receive alerts (Account > Notifications)
 r.get('/status', auth, wrap(async (req, res) => {
-  const [info, subs] = await Promise.all([getPushInfo(), PushSub.find().sort({ createdAt: -1 })]);
+  const [info, subs, logs] = await Promise.all([getPushInfo(), PushSub.find().sort({ createdAt: -1 }), PushLog.find().sort({ createdAt: -1 }).limit(8)]);
   res.json({
     serverReady: info.ready, keySource: info.source, serverProblem: info.ready ? '' : info.problem, keyNote: info.ready ? info.problem : '',
-    devices: subs.map((s) => ({ id: s._id, endpoint: s.endpoint, device: s.device || 'Unknown device', createdAt: s.createdAt, openedAt: s.updatedAt, lastOkAt: s.lastOkAt, lastError: s.lastError })),
+    logs: logs.map((l) => ({ id: l._id, title: l.title, kind: l.kind, at: l.createdAt, devices: l.devices, sent: l.sent, pending: l.pending, results: l.results })),
+    devices: subs.map((s) => ({ id: s._id, deviceId: s.deviceId, endpoint: s.endpoint, device: s.device || 'Unknown device', createdAt: s.createdAt, openedAt: s.updatedAt, lastOkAt: s.lastOkAt, lastError: s.lastError })),
   });
 }));
+
+// Remove registrations the push service has told us are gone for good (phone data cleared, old key)
+r.post('/cleanup', auth, wrap(async (req, res) => { const d = await PushSub.deleteMany({ lastError: { $regex: DEAD } }); res.json({ removed: d.deletedCount }); }));
 
 // Send a test alert to one device ({ id }) or to every device (no id)
 r.post('/test', auth, wrap(async (req, res) => {

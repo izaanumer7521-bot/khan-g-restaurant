@@ -103,3 +103,7 @@ Vercel > your project > **Settings > Environment Variables** > add `VAPID_PUBLIC
 - The phone registers one step at a time, so two parts of the admin app can no longer collide while saving the same device.
 - The server retries a save that collides and removes stray old database indexes by itself.
 - Account > Notifications now checks that the server really has this device and registers it again automatically if not. Any failure shows the exact reason, and "Technical details" lists what the browser and the server each know.
+
+## v15: one row per device + delivery log
+- Each phone or computer keeps a random id in its own storage, so re-registering always updates the same row. No more 2 or 3 copies of one phone. Old copies from the same login, and registrations the push service reports as gone, are removed automatically when the device registers again.
+- Account > Notifications has a **Recent alerts** list. For every new order it shows whether the server sent the alert, to how many devices, and the exact error for any device that failed. "Delivered" means Google or Apple accepted it for the phone; if nothing shows on the phone after that, the phone's own battery or notification settings are blocking it.

@@ -8,6 +8,15 @@ const toKey = (b64) => {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 };
 
+// A random id kept in this phone's storage so the server keeps exactly ONE row for this device, however often it re-registers.
+export function getDeviceId() {
+  try {
+    let id = localStorage.getItem('kg_device');
+    if (!id) { id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2); localStorage.setItem('kg_device', id); }
+    return id;
+  } catch { return ''; }
+}
+
 const sameKey = (buf, arr) => { const a = new Uint8Array(buf); return a.length === arr.length && a.every((v, i) => v === arr[i]); };
 
 export async function currentEndpoint() {
@@ -53,7 +62,7 @@ async function doSync(ask) {
       sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(key) });
     }
   }
-  await api('/push/subscribe', { method: 'POST', body: sub.toJSON() });
+  await api('/push/subscribe', { method: 'POST', body: { ...sub.toJSON(), deviceId: getDeviceId() } });
   return 'on';
 }
 
@@ -62,7 +71,7 @@ export async function registerCurrent() {
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.getSubscription();
   if (!sub) throw new Error('This browser has no push registration yet');
-  return api('/push/subscribe', { method: 'POST', body: sub.toJSON() });
+  return api('/push/subscribe', { method: 'POST', body: { ...sub.toJSON(), deviceId: getDeviceId() } });
 }
 
 export async function turnOffPush() {
