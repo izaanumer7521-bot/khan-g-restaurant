@@ -98,3 +98,8 @@ Vercel > your project > **Settings > Environment Variables** > add `VAPID_PUBLIC
 ## v13: permanent alert registration (Telegram removed)
 - A device registered for order alerts **stays registered until you unregister it** in Account > Notifications. Logging out or removing a login in Admin > Devices does not stop its alerts, and the server never deletes a registration by itself.
 - If a phone's own data was cleared, the registration is marked as needing attention and fixes itself the next time the admin app is opened on that phone.
+
+## v14: registration reliability
+- The phone registers one step at a time, so two parts of the admin app can no longer collide while saving the same device.
+- The server retries a save that collides and removes stray old database indexes by itself.
+- Account > Notifications now checks that the server really has this device and registers it again automatically if not. Any failure shows the exact reason, and "Technical details" lists what the browser and the server each know.

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { syncPush, turnOffPush, pushSupported, repairPush, currentEndpoint } from '../lib/push.js';
+import { syncPush, turnOffPush, pushSupported, repairPush, currentEndpoint, registerCurrent } from '../lib/push.js';
 import { chime, unlockAudio } from '../lib/sound.js';
 import { isStandalone } from '../lib/install.jsx';
 
@@ -12,6 +12,7 @@ const ago = (d) => {
   if (m < 1440) return Math.round(m / 60) + ' h ago';
   return Math.round(m / 1440) + ' d ago';
 };
+const hostOf = (u) => { try { return new URL(u).host; } catch { return 'unknown'; } };
 const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 const icon = (d) => (/iPhone|Android|iPad/.test(d) ? '📱' : '💻');
 
@@ -23,12 +24,29 @@ export default function Notifications() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    try { setInfo(await api('/push/status')); } catch { /* shown as loading */ }
-    try { setMine(await currentEndpoint()); } catch { /* ignore */ }
+    let i = null; let ep = '';
+    try { i = await api('/push/status'); setInfo(i); } catch { /* shown as loading */ }
+    try { ep = await currentEndpoint(); setMine(ep); } catch { /* ignore */ }
+    return { i, ep };
   }, []);
-  useEffect(() => { syncPush(false).then(setSt).catch(() => setSt('off')).finally(load); }, [load]);
+  // On open: register this device, then check the server really has it. If it does not, register it again automatically.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      let s;
+      try { s = await syncPush(false); } catch (e) { s = 'error'; setNote({ ok: false, text: 'Could not register this device: ' + e.message }); }
+      if (!alive) return;
+      setSt(s);
+      let { i, ep } = await load();
+      if (alive && s === 'on' && i && ep && !i.devices.some((d) => d.endpoint === ep)) {
+        try { await registerCurrent(); ({ i, ep } = await load()); }
+        catch (e) { if (alive) { setSt('error'); setNote({ ok: false, text: 'The server did not accept this device: ' + e.message }); } }
+      }
+    })();
+    return () => { alive = false; };
+  }, [load]);
 
-  const run = async (fn) => { setBusy(true); setNote({ ok: true, text: '' }); try { await fn(); } catch (e) { setNote({ ok: false, text: e.message }); } setBusy(false); await load(); };
+  const run = async (fn) => { setBusy(true); setNote({ ok: true, text: '' }); try { await fn(); } catch (e) { setSt('error'); setNote({ ok: false, text: e.message }); } setBusy(false); await load(); };
   const turnOn = () => run(async () => { unlockAudio(); chime(); setSt(await syncPush(true)); });
   const repair = () => run(async () => { unlockAudio(); setSt(await repairPush()); setNote({ ok: true, text: 'This device was registered again. Press “Send test alert” to confirm.' }); });
   const turnOff = () => run(async () => { await turnOffPush(); setSt('off'); });
@@ -53,7 +71,7 @@ export default function Notifications() {
 
   // one clear headline for this device
   let tone = 'warn'; let ic = '🔕'; let title = 'Checking…'; let text = ''; let action = null;
-  if (st === 'checking' || !info) { title = 'Checking this device…'; }
+  if (st === 'checking' || (!info && st !== 'error')) { title = 'Checking this device…'; }
   else if (st === 'unsupported') {
     ic = '📵'; title = needsInstall ? 'Install the admin app first' : 'Alerts are not supported here';
     text = needsInstall ? 'On iPhone, tap Share → Add to Home Screen, then open Khan G Admin from the Home Screen and come back to this page.' : 'This browser cannot receive background notifications. Use Chrome or Edge on Android or a computer.';
@@ -65,6 +83,9 @@ export default function Notifications() {
   } else if (st === 'server-off') {
     tone = 'bad'; ic = '⚠️'; title = 'The server could not prepare alerts'; text = (info.serverProblem || 'Please try again in a minute.');
     action = <button className="btn" disabled={busy} onClick={load}>Check again</button>;
+  } else if (st === 'error') {
+    tone = 'bad'; ic = '⚠️'; title = 'This device could not be registered'; text = 'The exact reason is shown below. Press Try again. If it keeps failing, send me that message.';
+    action = <button className="btn" disabled={busy} onClick={repair}>Try again</button>;
   } else if (st === 'on' && !me) {
     ic = '🛠'; title = 'This device needs a quick repair'; text = 'It is allowed to show notifications but is not registered with the server yet.';
     action = <button className="btn" disabled={busy} onClick={repair}>Repair this device</button>;
@@ -126,6 +147,18 @@ export default function Notifications() {
           );
         })}
       </div>
+
+      <details className="gcard tips">
+        <summary>Technical details (for troubleshooting)</summary>
+        <div className="muted" style={{ marginTop: 10, fontSize: '.85rem', lineHeight: 1.8 }}>
+          Browser permission: <b>{typeof Notification !== 'undefined' ? Notification.permission : 'n/a'}</b><br />
+          Push registration in this browser: <b>{mine ? 'yes (' + hostOf(mine) + ')' : 'none'}</b><br />
+          Server has this registration: <b>{!info ? '…' : me ? 'yes' : 'no'}</b><br />
+          Devices registered on server: <b>{info ? devices.length : '…'}</b><br />
+          Push keys: <b>{info ? (info.serverReady ? (info.keySource === 'env' ? 'your Vercel keys' : 'automatic keys') : 'problem: ' + info.serverProblem) : '…'}</b><br />
+          Service worker controlling page: <b>{pushSupported() && navigator.serviceWorker.controller ? 'yes' : 'no'}</b>
+        </div>
+      </details>
 
       <details className="gcard tips">
         <summary>Not getting alerts when the app is closed?</summary>

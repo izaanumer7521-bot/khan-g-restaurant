@@ -12,10 +12,18 @@ r.post('/subscribe', auth, wrap(async (req, res) => {
   const { endpoint, keys } = req.body || {};
   if (!endpoint || !keys || !keys.p256dh || !keys.auth) return res.status(400).json({ message: 'Invalid subscription' });
   const device = deviceName(req.headers['user-agent']);
-  await PushSub.findOneAndUpdate({ endpoint }, { endpoint, keys, user: req.user._id, session: req.sessionId, device }, { upsert: true, new: true });
+  const save = () => PushSub.findOneAndUpdate({ endpoint }, { endpoint, keys, user: req.user._id, session: req.sessionId, device }, { upsert: true, new: true });
+  let doc;
+  try { doc = await save(); }
+  catch (e) {
+    // Two requests saving the same phone at the same moment (or an old leftover database index) can collide. Clean up and try once more.
+    if (e.code !== 11000) throw e;
+    await PushSub.syncIndexes().catch(() => {});
+    doc = await save();
+  }
   // This device registered again, so a dead registration of the same kind of device (phone wiped, old key) is replaced, not piled up.
   await PushSub.deleteMany({ endpoint: { $ne: endpoint }, device, lastError: { $regex: /^(Device unsubscribed|Registered with an old key)/ } });
-  res.json({ ok: true });
+  res.json({ ok: true, id: doc._id, total: await PushSub.countDocuments() });
 }));
 
 // The browser rotated this phone's registration while the app was closed (see sw.js). The old endpoint proves who it is.

@@ -17,9 +17,17 @@ export async function currentEndpoint() {
   return sub ? sub.endpoint : '';
 }
 
-// Returns: 'on' | 'off' | 'denied' | 'unsupported' | 'server-off'
+// Returns: 'on' | 'off' | 'denied' | 'unsupported' | 'server-off'. Throws a readable Error if registering fails.
 // ask = true only from a button tap (browsers require a tap to show the permission box)
-export async function syncPush(ask = false) {
+// Calls run one at a time, so the admin layout and the Account page can never register the phone at the same moment.
+let chain = Promise.resolve();
+export function syncPush(ask = false) {
+  const p = chain.then(() => doSync(ask));
+  chain = p.catch(() => {});
+  return p;
+}
+
+async function doSync(ask) {
   if (!pushSupported()) return 'unsupported';
   if (Notification.permission === 'denied') return 'denied';
   if (Notification.permission === 'default') {
@@ -32,17 +40,29 @@ export async function syncPush(ask = false) {
   const reg = await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();
   // a registration made with an older server key can never receive messages: replace it
-  if (sub && sub.options && sub.options.applicationServerKey && !sameKey(sub.options.applicationServerKey, toKey(key))) { await api('/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint } }).catch(() => {}); await sub.unsubscribe(); sub = null; }
+  if (sub && sub.options && sub.options.applicationServerKey && !sameKey(sub.options.applicationServerKey, toKey(key))) {
+    await api('/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint } }).catch(() => {});
+    await sub.unsubscribe(); sub = null;
+  }
   if (!sub) {
     try { sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(key) }); }
-    catch { // an old subscription made with a different key
+    catch (e) {
       const old = await reg.pushManager.getSubscription();
-      if (old) await old.unsubscribe();
+      if (!old) throw new Error('The browser could not create a push registration: ' + (e && e.message ? e.message : e));
+      await old.unsubscribe(); // an old subscription made with a different key
       sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(key) });
     }
   }
   await api('/push/subscribe', { method: 'POST', body: sub.toJSON() });
   return 'on';
+}
+
+// Send this browser's existing registration to the server again (used when the server has no record of it)
+export async function registerCurrent() {
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (!sub) throw new Error('This browser has no push registration yet');
+  return api('/push/subscribe', { method: 'POST', body: sub.toJSON() });
 }
 
 export async function turnOffPush() {
